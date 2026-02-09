@@ -17,3 +17,7 @@ func respondError(logger *zap.Logger, w http.ResponseWriter, msg string, statusC
 		logger.Error("failed to write error response", zap.Error(err))
 	}
 }
+
+func respondGenericInternalServerError(logger *zap.Logger, w http.ResponseWriter) {
+	respondError(logger, w, "an unknown error occurred... try again later.", http.StatusInternalServerError)
+}

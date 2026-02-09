@@ -69,7 +69,7 @@ func csrPOSTHandler(
 		result, err := csrAuthorizer.AuthorizeCSR(r.Context(), csr, r.RemoteAddr)
 		if err != nil {
 			logger.Error("failed to authorize CSR", zap.Error(err))
-			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)
+			respondGenericInternalServerError(logger, w)
 			return
 		}
 		if !result.Allowed {
@@ -104,7 +104,7 @@ func csrPOSTHandler(
 		resp := &models.CSRResponse{CertificatePEM: string(chainPEM)}
 		if err := resp.Write(w); err != nil {
 			logger.Error("failed to encode reqsponse as JSON", zap.Error(err))
-			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)
+			respondGenericInternalServerError(logger, w)
 			return
 		}
 	})

@@ -54,7 +54,7 @@ func dnsRecordsDeletePOSTHandler(
 		result, err := dnsAuthorizer.AuthorizeRecords(r.Context(), r.RemoteAddr, req.Records...)
 		if err != nil {
 			logger.Error("failed to authorize DNS request", zap.Error(err))
-			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)
+			respondGenericInternalServerError(logger, w)
 			return
 		}
 		if !result.Allowed {
@@ -138,7 +138,7 @@ func dnsRecordsDeletePOSTHandler(
 		}
 		if err := out.Write(w); err != nil {
 			logger.Error("failed to encode reqsponse as JSON", zap.Error(err))
-			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)
+			respondGenericInternalServerError(logger, w)
 			return
 		}
 	})
