@@ -19,7 +19,6 @@ import (
 var (
 	ResolverAddrCloudflare = net.UDPAddr{IP: net.ParseIP("1.1.1.1"), Port: 53}
 	ResolverAddrGoogle     = net.UDPAddr{IP: net.ParseIP("8.8.8.8"), Port: 53}
-	ResolverAddrQuad9      = net.UDPAddr{IP: net.ParseIP("9.9.9.9"), Port: 53}
 )
 
 type config struct {
@@ -70,9 +69,8 @@ func GetCertificate(
 		checkResolvers: []net.UDPAddr{
 			ResolverAddrCloudflare,
 			ResolverAddrGoogle,
-			ResolverAddrQuad9,
 		},
-		checkInterval: time.Second * 5,
+		checkInterval: time.Second * 3,
 	}
 	for _, opt := range opts {
 		opt(cfg)
