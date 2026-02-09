@@ -36,7 +36,7 @@ var (
 	ErrNoCertAvailable = errors.New("no certificate available")
 )
 
-// Client represents a Certsnet Client, capable
+// Client represents a tsdmg Client, capable
 // of retrieving certificates as needed
 type Client struct {
 	logger *zap.Logger

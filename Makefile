@@ -1,27 +1,12 @@
 SHELL := /bin/bash
+PROGRAM_NAME := tsdmg
+DOCKER_IMAGE := ghcr.io/adrianosela/$(PROGRAM_NAME):latest
 
-# Helper function to check if TSDMG_TS_AUTHKEY is set
-define check_ts_authkey
-	@if [ -z "$$TSDMG_TS_AUTHKEY" ]; then \
-		echo "ERROR: TSDMG_TS_AUTHKEY is not set. Please set it before running this command."; \
+define check_env_set
+	@if [ -z "$$$(1)" ]; then \
+		echo "ERROR: $(1) is not set. Please set it before running this command."; \
 		exit 1; \
 	fi
-endef
-
-# Helper function to check if TSDMG_CLOUDFLARE_API_TOKEN is set
-define check_cloudflare_api_token
-        @if [ -z "$$TSDMG_CLOUDFLARE_API_TOKEN" ]; then \
-                echo "ERROR: TSDMG_CLOUDFLARE_API_TOKEN is not set. Please set it before running this command."; \
-                exit 1; \
-        fi
-endef
-
-# Helper function to check if TSDMG_GODADDY_API_TOKEN is set
-define check_godaddy_api_token
-        @if [ -z "$$TSDMG_GODADDY_API_TOKEN" ]; then \
-                echo "ERROR: TSDMG_GODADDY_API_TOKEN is not set. Please set it before running this command."; \
-                exit 1; \
-        fi
 endef
 
 .PHONY: help
@@ -30,8 +15,8 @@ help: ## Print this help menu
 
 .PHONY: tsdmg-cloudflare
 tsdmg-cloudflare: ## Run the tsdmg server with Cloudflare as the DNS provider
-	$(call check_ts_authkey)
-	$(call check_cloudflare_api_token)
+	$(call check_env_set,TSDMG_TS_AUTHKEY)
+	$(call check_env_set,TSDMG_CLOUDFLARE_API_TOKEN)
 	go run ./cmd/server \
 		-ts-authkey=$$TSDMG_TS_AUTHKEY \
 		-dns-provider=cloudflare \
@@ -39,12 +24,20 @@ tsdmg-cloudflare: ## Run the tsdmg server with Cloudflare as the DNS provider
 
 .PHONY: tsdmg-godaddy
 tsdmg-godaddy: ## Run the tsdmg server with GoDaddy as the DNS provider
-	$(call check_ts_authkey)
-	$(call check_godaddy_api_token)
+	$(call check_env_set,TSDMG_TS_AUTHKEY)
+	$(call check_env_set,TSDMG_GODADDY_API_TOKEN)
 	go run ./cmd/server \
 		-ts-authkey=$$TSDMG_TS_AUTHKEY \
 		-dns-provider=godaddy \
 		-godaddy-api-token=$$TSDMG_GODADDY_API_TOKEN
+
+.PHONY: build
+build: ## Build the tsdmg server binary for the current OS/ARCH
+	go build -o $(PROGRAM_NAME) ./cmd/server
+
+.PHONY: image
+image: ## Build tsdmg Docker image
+	docker build -t $(DOCKER_IMAGE) .
 
 .PHONY: lint
 lint: ## Lint code

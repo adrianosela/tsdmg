@@ -1,0 +1,14 @@
+FROM golang:1.25-alpine3.23 AS builder
+RUN apk update --no-cache
+RUN apk --no-cache add make bash
+WORKDIR /builddir
+COPY . .
+RUN make build
+
+FROM alpine:3.23
+RUN apk upgrade --no-cache
+RUN apk --no-cache add tree
+RUN tree /
+COPY --from=builder /builddir/tsdmg /usr/local/bin/tsdmg
+EXPOSE 80 443
+ENTRYPOINT ["/usr/local/bin/tsdmg"]
