@@ -6,14 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/libdns/libdns"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme"
-	"golang.org/x/net/publicsuffix"
 )
 
 var (
@@ -49,11 +48,6 @@ func WithPropagationCheckResolvers(resolvers ...net.UDPAddr) Option {
 
 func WithPropagationCheckInterval(interval time.Duration) Option {
 	return func(c *config) { c.checkInterval = interval }
-}
-
-type DNS01Solver interface {
-	libdns.RecordAppender
-	libdns.RecordDeleter
 }
 
 func GetCertificate(
@@ -114,7 +108,7 @@ func GetCertificate(
 			}
 			fqdn := authz.Identifier.Value
 
-			zone, name, err := SplitZone(fqdn)
+			zone, name, err := dns.SplitZone(fqdn)
 			if err != nil {
 				errs[i] = fmt.Errorf("failed to split fqdn: %v", err)
 				return
@@ -200,22 +194,6 @@ func createTXT(
 	}
 	_, err := dnsProvider.AppendRecords(ctx, zone, []libdns.Record{rec})
 	return err
-}
-
-func SplitZone(fqdn string) (zone, name string, err error) {
-	fqdn = strings.TrimSuffix(fqdn, ".")
-
-	zone, err = publicsuffix.EffectiveTLDPlusOne(fqdn)
-	if err != nil {
-		return "", "", err
-	}
-
-	if fqdn == zone {
-		return zone, "", nil
-	}
-
-	name = strings.TrimSuffix(fqdn, fmt.Sprintf(".%s", zone))
-	return zone, name, nil
 }
 
 func waitForTXTPropagation(

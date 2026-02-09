@@ -17,19 +17,19 @@ help: ## Print this help menu
 tsdmg-cloudflare: ## Run the tsdmg server with Cloudflare as the DNS provider
 	$(call check_env_set,TSDMG_TS_AUTHKEY)
 	$(call check_env_set,TSDMG_CLOUDFLARE_API_TOKEN)
-	go run ./cmd/server \
+	(cd cmd/server && go run . \
 		-ts-authkey=$$TSDMG_TS_AUTHKEY \
 		-dns-provider=cloudflare \
-		-cloudflare-api-token=$$TSDMG_CLOUDFLARE_API_TOKEN
+		-cloudflare-api-token=$$TSDMG_CLOUDFLARE_API_TOKEN)
 
 .PHONY: tsdmg-godaddy
 tsdmg-godaddy: ## Run the tsdmg server with GoDaddy as the DNS provider
 	$(call check_env_set,TSDMG_TS_AUTHKEY)
 	$(call check_env_set,TSDMG_GODADDY_API_TOKEN)
-	go run ./cmd/server \
+	(cd cmd/server && go run . \
 		-ts-authkey=$$TSDMG_TS_AUTHKEY \
 		-dns-provider=godaddy \
-		-godaddy-api-token=$$TSDMG_GODADDY_API_TOKEN
+		-godaddy-api-token=$$TSDMG_GODADDY_API_TOKEN)
 
 .PHONY: build
 build: ## Build the tsdmg server binary for the current OS/ARCH

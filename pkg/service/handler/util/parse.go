@@ -5,13 +5,13 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/adrianosela/tsdmg/pkg/dns01"
+	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/models"
 	"github.com/libdns/libdns"
 )
 
 func ModelToLibDNS(r models.Record) (libdns.Record, string, error) {
-	zone, name, err := dns01.SplitZone(r.FQDN)
+	zone, name, err := dns.SplitZone(r.FQDN)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to split FQDN into zone and name: %v", err)
 	}

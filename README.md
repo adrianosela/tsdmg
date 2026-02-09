@@ -54,31 +54,82 @@ The `dns.Provider` interface is implemented for all major DNS providers by `http
 This package includes a `tsdmg` client capable of requesting, caching, and refreshing public (Let's Encrypt) TLS certificates, by leveraging a `tsdmg` server.
 
 ```
+serverURL := "http://tsdmg" // my server's node name is tsdmg
+
 opts := []tsdmg.Option{
 	// Use a real logger.
 	tsdmg.WithLogger(logger),
 
-	// Cache certificates in the filesystem to
-	// avoid hitting the Let's Encrypt rate limit.
-	tsdmg.WithCertificateCache(autocert.DirCache("./certcache")),
-
 	// My laptop is already running the Tailscale desktop
 	// client, so the tsdmg server is already reachable by
-	// node-name i.e. http://tsdmg
+	// node-name i.e. http://tsdmg. Not setting this option
+	// will attempt to initialize a new Tailscale node.
 	tsdmg.WithSkipTailscaleNode(true),
 }
 
-client, err := tsdmg.NewClient(
-	ctx,
-	"macbook.tsdmg.net",
-	"http://tsdmg", // my tsdmg server node is called "tsdmg"
-	opts...,
-)
+client, err := tsdmg.NewClient(ctx, serverURL, opts...)
 if err != nil {
 	logger.Fatal("failed to initialize client", zap.Error(err))
 }
 defer client.Close()
+
+created, err := client.CreateRecords(ctx, recordsToCreate...)
+// check error
+
+deleted, err := client.DeleteRecords(ctx, recordsToDelete...)
+// check error
 ```
+
+## Certificate Manager Usage
+
+With an initialized `tsdmg.Client` client:
+
+> NOTE: import "github.com/adrianosela/tsdmg/pkg/tsautocert"
+
+```
+certCommonName := "macbook.tsdmg.net"
+
+opts := []tsautocert.Option{
+	// Use a real logger.
+	tsautocert.WithLogger(logger),
+
+	// Cache certificates in the filesystem to
+	// avoid hitting the Let's Encrypt rate limit.
+	tsautocert.WithCertificateCache(autocert.DirCache("./certcache")),
+}
+
+certManager, err := tsautocert.NewCertificateManager(
+	ctx,
+	client,
+	certCommonName,
+	opts...,
+)
+if err != nil {
+	logger.Fatal("failed to initialize certificate manager", zap.Error(err))
+}
+defer certManager.Close()
+
+if err := certManager.WaitForInitialCert(ctx); err != nil {
+	logger.Fatal("failed to wait for initial certificate", zap.Error(err))
+}
+
+ln, err := net.Listen("tcp", ":443")
+if err != nil {
+	logger.Fatal("failed to start tcp listener on :443", zap.Error(err))
+}
+
+// Configure TLS listener to get certificate using tsdmg client.
+ln = tls.NewListener(ln, &tls.Config{GetCertificate: certManager.GetCertificate})
+defer ln.Close()
+
+err = http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello World!"))
+}))
+if err != nil {
+	logger.Fatal("failed to serve HTTP", zap.Error(err))
+}
+```
+
 
 ## Tailscale ACLs Example
 
