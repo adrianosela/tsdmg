@@ -106,7 +106,7 @@ func GetCertificate(
 			}
 			fqdn := authz.Identifier.Value
 
-			zone, name, err := splitZone(fqdn)
+			zone, name, err := SplitZone(fqdn)
 			if err != nil {
 				errs[i] = fmt.Errorf("failed to split fqdn: %v", err)
 				return
@@ -176,18 +176,16 @@ func createTXT(
 	name string,
 	value string,
 ) error {
-
 	rec := libdns.TXT{
-		Name: "_acme-challenge." + name,
+		Name: fmt.Sprintf("_acme-challenge.%s", name),
 		TTL:  60,
 		Text: value,
 	}
-
 	_, err := dnsProvider.AppendRecords(ctx, zone, []libdns.Record{rec})
 	return err
 }
 
-func splitZone(fqdn string) (zone, name string, err error) {
+func SplitZone(fqdn string) (zone, name string, err error) {
 	fqdn = strings.TrimSuffix(fqdn, ".")
 
 	zone, err = publicsuffix.EffectiveTLDPlusOne(fqdn)
@@ -199,7 +197,7 @@ func splitZone(fqdn string) (zone, name string, err error) {
 		return zone, "", nil
 	}
 
-	name = strings.TrimSuffix(fqdn, "."+zone)
+	name = strings.TrimSuffix(fqdn, fmt.Sprintf(".%s", zone))
 	return zone, name, nil
 }
 

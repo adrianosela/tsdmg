@@ -15,7 +15,7 @@ Running a `tsdmg` service in your Tailnet enables several use-cases not possible
 - Allow Tailscale nodes to retrieve **public (Let's Encrypt) TLS certificates** for custom domains
 - Allow Tailscale nodes to **manage your domains/subdomains arbitrarily**
 
-> My motivation to build this is that I wanted all my internal services and web applications (not on the Internet, accesible only via Tailscale) to be reachable via my custom domain (`<node>.services.adrianosela.com`), and I wanted them to serve HTTPS using public (Let's Encrypt) certificates.
+> My motivation to build this is that I wanted all my internal services and web applications (not on the Internet, accesible only via Tailscale) to be reachable via my custom domain (`<node>.services.adrianosela.com`), and I wanted them to serve TLS/HTTPS using public (Let's Encrypt) certificates.
 >
 > Really I wish I could just delegate the `services.adrianosela.com` zone to Tailscale, and have them do this for me (but it's not possible as of Feb 2026).
 
@@ -23,7 +23,7 @@ Running a `tsdmg` service in your Tailnet enables several use-cases not possible
 
 Essentially:
 
-- Using Tailscale ACLs, you define which Tailscale sources (nodes, users, groups) can manage which subdomains
+- Using Tailscale ACLs, you define which Tailscale sources (nodes, users, groups) can manage which subdomains (e.g. node "webapp" can manage "webapp.yourdomain.com")
 - You provision the `tsdmg` service with credentials for your DNS provider (e.g. Cloudflare, Google, GoDaddy, etc...)
 - Your Tailscale nodes can request domains to be created/updated/deleted against the `tsdmg` service via HTTP
 - The `tsdmg` service will use incoming requests' Tailscale identity to authenticate and authorize (based on Tailscale ACLs) domain management requests
@@ -31,3 +31,10 @@ Essentially:
 ## How Do I Run It?
 
 ...TODO: docker
+
+
+## TODOs:
+
+- Accept generic loggers, not zap.Logger
+- Better project structure e.g. `internal`, not everything as `pkg`
+- Consider changing `models.Record` to include zone, so that private DNS providers can be used

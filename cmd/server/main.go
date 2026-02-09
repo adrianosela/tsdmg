@@ -9,7 +9,9 @@ import (
 	"flag"
 	"log"
 
+	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/service"
+	"github.com/libdns/cloudflare"
 	"github.com/libdns/godaddy"
 	"go.uber.org/zap"
 	"tailscale.com/tsnet"
@@ -23,20 +25,35 @@ func main() {
 
 	var addr string
 	var tsAuthKey string
+	var dnsProviderID string
+	var cloudflareAPIToken string
 	var godaddyAPIToken string
 	var hostname string
 
 	flag.StringVar(&addr, "addr", ":80", "address to listen on")
 	flag.StringVar(&tsAuthKey, "ts-authkey", "", "Tailscale auth key")
-	flag.StringVar(&godaddyAPIToken, "godaddy-api-token", "", "GoDaddy API token")
+	flag.StringVar(&dnsProviderID, "dns-provider", "", "Which DNS provider to use (cloudflare, godaddy)")
+	flag.StringVar(&cloudflareAPIToken, "cloudflare-api-token", "", "Cloudflare API token (required if dns-provider is \"cloudflare\")")
+	flag.StringVar(&godaddyAPIToken, "godaddy-api-token", "", "GoDaddy API token (required if dns-provider is \"godaddy\")")
 	flag.StringVar(&hostname, "hostname", "tsdmg", "hostname to use for Tailscale machine")
 	flag.Parse()
 
 	if tsAuthKey == "" {
 		logger.Fatal("flag ts-authkey is required but was empty")
 	}
-	if godaddyAPIToken == "" {
-		logger.Fatal("flag godaddy-api-token is required but was empty")
+
+	var dnsProvider dns.Provider
+	switch dnsProviderID {
+	case "cloudflare":
+		if cloudflareAPIToken == "" {
+			logger.Fatal("flag cloudflare-api-token is required but was empty")
+		}
+		dnsProvider = &cloudflare.Provider{APIToken: cloudflareAPIToken}
+	case "godaddy":
+		if godaddyAPIToken == "" {
+			logger.Fatal("flag godaddy-api-token is required but was empty")
+		}
+		dnsProvider = &godaddy.Provider{APIToken: godaddyAPIToken}
 	}
 
 	srv := new(tsnet.Server)
@@ -68,10 +85,7 @@ func main() {
 		ln = tls.NewListener(ln, &tls.Config{GetCertificate: tsClient.GetCertificate})
 	}
 
-	ctx := context.Background()
-	dnsProvider := &godaddy.Provider{APIToken: godaddyAPIToken}
-
-	proxy, err := service.New(ctx, tsClient, dnsProvider, service.WithLogger(logger))
+	proxy, err := service.New(context.Background(), tsClient, dnsProvider, service.WithLogger(logger))
 	if err != nil {
 		logger.Fatal("failed to initialize tsdmg acme proxy", zap.Error(err))
 	}

@@ -5,7 +5,7 @@ package models
 
 type Record struct {
 	Type  string `json:"type"`
-	Name  string `json:"name"`
+	FQDN  string `json:"fqdn"`
 	Value string `json:"value"`
 	TTL   uint32 `json:"ttl"`
 }

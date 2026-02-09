@@ -17,6 +17,7 @@ import (
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/issuer"
+	"github.com/adrianosela/tsdmg/pkg/service/handler"
 	"go.uber.org/zap"
 	"tailscale.com/client/local"
 )
@@ -83,12 +84,11 @@ func New(
 	}
 
 	return &ACMEProxy{
-		handler: getHandler(
+		handler: handler.GetHandler(
 			cfg.logger,
 			cfg.dnsProvider,
 			authzer,
 			certIssuer,
-			false,
 		),
 	}, nil
 }

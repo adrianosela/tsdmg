@@ -23,14 +23,6 @@ import (
 	"github.com/adrianosela/tsdmg/pkg/models"
 )
 
-var (
-	serverURL   string
-	commonName  string
-	sans        []string
-	keyOutPath  string
-	certOutPath string
-)
-
 var requestCmd = &cobra.Command{
 	Use:   "request",
 	Short: "Request a certificate from the tsdmg",

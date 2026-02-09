@@ -3,6 +3,7 @@ module github.com/adrianosela/tsdmg
 go 1.25.7
 
 require (
+	github.com/libdns/cloudflare v0.2.2
 	github.com/libdns/godaddy v1.1.0
 	github.com/libdns/libdns v1.1.1
 	go.uber.org/zap v1.27.1
