@@ -4,36 +4,40 @@
 package tsdmg
 
 import (
+	"crypto"
 	"errors"
 	"fmt"
 	"net/url"
 
-	"github.com/adrianosela/tsdmg/pkg/certcache"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/acme/autocert"
 	"tailscale.com/client/local"
 )
 
 var (
-	errNilLogger           = errors.New("logger must not be nil")
-	errNilCache            = errors.New("cache must not be nil")
-	errEmptyCN             = errors.New("commonName must not be empty")
-	errEmptyACMEProxyURL   = errors.New("acmeProxyURL must not be empty")
-	errInvalidACMEProxyURL = errors.New("acmeProxyURL is not a valid URL")
+	errNilLogger        = errors.New("logger must not be nil")
+	errNilCache         = errors.New("cache must not be nil")
+	errEmptyCN          = errors.New("commonName must not be empty")
+	errEmptyServerURL   = errors.New("serverURL must not be empty")
+	errInvalidServerURL = errors.New("serverURL is not a valid URL")
 
 	errClientClosed = errors.New("client is closed")
 )
 
 type config struct {
 	logger *zap.Logger
-	cache  certcache.Cache
+	cache  autocert.Cache
 
 	certCN   string
 	certSANs []string
 
-	acmeProxyURL string
+	serverURL string
 
 	skipTailscaleNode bool
 	tailscaleClient   *local.Client
+
+	acmeAccountKey crypto.Signer
+	acmeContact    []string
 }
 
 func (c *config) validate() error {
@@ -46,11 +50,11 @@ func (c *config) validate() error {
 	if c.certCN == "" {
 		return errEmptyCN
 	}
-	if c.acmeProxyURL == "" {
-		return errEmptyACMEProxyURL
+	if c.serverURL == "" {
+		return errEmptyServerURL
 	}
-	if _, err := url.Parse(c.acmeProxyURL); err != nil {
-		return fmt.Errorf("%w: %v", errInvalidACMEProxyURL, err)
+	if _, err := url.Parse(c.serverURL); err != nil {
+		return fmt.Errorf("%w: %v", errInvalidServerURL, err)
 	}
 	return nil
 }
@@ -102,6 +106,19 @@ func WithSANs(sans ...string) Option {
 // It is always a good idea to specify a cache strategy... Or
 // the acme proxy will likely hit rate limits for the CN and
 // SANS requested.
-func WithCertificateCache(cache certcache.Cache) Option {
+func WithCertificateCache(cache autocert.Cache) Option {
 	return func(c *config) { c.cache = cache }
+}
+
+// WithACMEAccountKey is a configuration option to configure an
+// ACME account key. If this option is unset, a key will be
+// generated at runtime.
+func WithACMEAccountKey(acmeAccountKey crypto.Signer) Option {
+	return func(c *config) { c.acmeAccountKey = acmeAccountKey }
+}
+
+// WithACMEAContact is a configuration option to configure
+// contact details for the ACME account e.g.
+func WithACMEAContact(acmeContact []string) Option {
+	return func(c *config) { c.acmeContact = acmeContact }
 }

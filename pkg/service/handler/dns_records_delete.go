@@ -77,6 +77,7 @@ func dnsRecordsDeletePOSTHandler(
 			}
 		}
 
+		deleted := []models.Record{}
 		erroredZones := []error{}
 		for zone, recordsToDelete := range libdnsRecords {
 
@@ -114,7 +115,7 @@ func dnsRecordsDeletePOSTHandler(
 				continue
 			}
 
-			_, err = dnsProvider.DeleteRecords(r.Context(), zone, recordsWithIDs)
+			deletedRecords, err := dnsProvider.DeleteRecords(r.Context(), zone, recordsWithIDs)
 			if err != nil {
 				erroredZones = append(
 					erroredZones,
@@ -122,13 +123,19 @@ func dnsRecordsDeletePOSTHandler(
 				)
 				continue
 			}
+			for _, deletedRecord := range deletedRecords {
+				deleted = append(deleted, *util.LibDNSToModel(deletedRecord, zone))
+			}
 		}
 
 		errMsg := ""
 		if err := errors.Join(erroredZones...); err != nil {
 			errMsg = err.Error()
 		}
-		out := &models.DeleteRecordsOutput{Error: errMsg}
+		out := &models.DeleteRecordsOutput{
+			Error:   errMsg,
+			Records: deleted,
+		}
 		if err := out.Write(w); err != nil {
 			logger.Error("failed to encode reqsponse as JSON", zap.Error(err))
 			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)

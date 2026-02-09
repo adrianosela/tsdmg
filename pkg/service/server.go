@@ -5,10 +5,6 @@ package service
 
 import (
 	"context"
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"net"
@@ -16,7 +12,6 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
-	"github.com/adrianosela/tsdmg/pkg/issuer"
 	"github.com/adrianosela/tsdmg/pkg/service/handler"
 	"go.uber.org/zap"
 	"tailscale.com/client/local"
@@ -32,11 +27,9 @@ var (
 )
 
 type config struct {
-	logger         *zap.Logger
-	tsClient       *local.Client
-	dnsProvider    dns.Provider
-	acmeAccountKey crypto.Signer
-	acmeContact    []string
+	logger      *zap.Logger
+	tsClient    *local.Client
+	dnsProvider dns.Provider
 }
 
 func (c *config) validate() error {
@@ -57,11 +50,9 @@ func New(
 	opts ...Option,
 ) (*Service, error) {
 	cfg := &config{
-		logger:         zap.NewNop(),
-		tsClient:       tsClient,
-		dnsProvider:    dnsProvider,
-		acmeAccountKey: nil,
-		acmeContact:    []string{},
+		logger:      zap.NewNop(),
+		tsClient:    tsClient,
+		dnsProvider: dnsProvider,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -70,26 +61,13 @@ func New(
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	if cfg.acmeAccountKey == nil {
-		accountKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			return nil, fmt.Errorf("no acme account key was provided and failed to generate one: %v", err)
-		}
-		cfg.acmeAccountKey = accountKey
-	}
-
 	authzer := authorizer.NewDNS(cfg.logger, cfg.tsClient, dnsCapName)
-	certIssuer, err := issuer.NewACME(ctx, cfg.dnsProvider, cfg.acmeAccountKey, cfg.acmeContact...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize acme certiticate issuer: %v", err)
-	}
 
 	return &Service{
 		handler: handler.GetHandler(
 			cfg.logger,
 			cfg.dnsProvider,
 			authzer,
-			certIssuer,
 		),
 	}, nil
 }

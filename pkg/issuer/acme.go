@@ -11,11 +11,13 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/dns01"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/acme"
 )
 
 // acmeIssuer is an issuer that issues Let's Encrypt certificates.
 type acmeIssuer struct {
+	logger      *zap.Logger
 	acmeClient  *acme.Client
 	dnsProvider dns.Provider
 }
@@ -23,6 +25,7 @@ type acmeIssuer struct {
 // NewACME creates a new ACME issuer.
 func NewACME(
 	ctx context.Context,
+	logger *zap.Logger,
 	dnsProvider dns.Provider,
 	accountKey crypto.Signer,
 	contact ...string,
@@ -45,6 +48,7 @@ func NewACME(
 	}
 
 	return &acmeIssuer{
+		logger:      logger,
 		acmeClient:  acmeClient,
 		dnsProvider: dnsProvider,
 	}, nil
@@ -55,5 +59,5 @@ func (a *acmeIssuer) Issue(
 	ctx context.Context,
 	csr *x509.CertificateRequest,
 ) ([][]byte, error) {
-	return dns01.GetCertificate(ctx, a.acmeClient, a.dnsProvider, csr)
+	return dns01.GetCertificate(ctx, a.logger, a.acmeClient, a.dnsProvider, csr)
 }

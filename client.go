@@ -6,8 +6,12 @@ package tsdmg
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -20,7 +24,10 @@ import (
 	"github.com/adrianosela/tsdmg/pkg/certcache"
 	"github.com/adrianosela/tsdmg/pkg/client"
 	"github.com/adrianosela/tsdmg/pkg/csrgen"
+	"github.com/adrianosela/tsdmg/pkg/dns01"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/acme"
+	"golang.org/x/crypto/acme/autocert"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
 )
@@ -34,7 +41,7 @@ var (
 type Client struct {
 	logger *zap.Logger
 
-	service client.Client
+	dns01Solver dns01.DNS01Solver
 
 	certCN   string
 	certSANs []string
@@ -42,7 +49,10 @@ type Client struct {
 	certReady chan struct{}
 	cert      atomic.Pointer[tls.Certificate]
 
-	cache certcache.Cache
+	cache    autocert.Cache
+	cacheKey string
+
+	acmeClient *acme.Client
 
 	isOpen  atomic.Bool
 	closers []func() error
@@ -69,24 +79,50 @@ func (c *Client) WaitForInitialCert(ctx context.Context) error {
 }
 
 func NewClient(
+	ctx context.Context,
 	commonName string,
-	acmeProxyURL string,
+	serverURL string,
 	opts ...Option,
 ) (*Client, error) {
 	cfg := &config{
 		logger:            zap.NewNop(),
 		certCN:            commonName,
 		certSANs:          nil,
-		acmeProxyURL:      acmeProxyURL,
+		serverURL:         serverURL,
 		skipTailscaleNode: false,
 		tailscaleClient:   nil,
 		cache:             certcache.NewNop(),
+		acmeAccountKey:    nil,
+		acmeContact:       []string{},
 	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	if cfg.acmeAccountKey == nil {
+		accountKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, fmt.Errorf("no acme account key was provided and failed to generate one: %v", err)
+		}
+		cfg.acmeAccountKey = accountKey
+	}
+
+	acmeClient := &acme.Client{
+		Key:          cfg.acmeAccountKey,
+		DirectoryURL: acme.LetsEncryptURL,
+		UserAgent:    "tsdmg",
+	}
+	account := &acme.Account{}
+	if len(cfg.acmeContact) > 0 {
+		account.Contact = cfg.acmeContact
+	}
+	if _, err := acmeClient.Register(ctx, account, acme.AcceptTOS); err != nil {
+		if err != acme.ErrAccountAlreadyExists {
+			return nil, fmt.Errorf("failed to register with acme: %v", err)
+		}
 	}
 
 	// Sort SANs so we can use slices.Equal to check if all SANs
@@ -98,7 +134,7 @@ func NewClient(
 	var closers []func() error
 
 	// Initialize tailscale client if none provided via options.
-	if cfg.tailscaleClient == nil {
+	if cfg.tailscaleClient == nil && !cfg.skipTailscaleNode {
 		srv := new(tsnet.Server)
 		srv.Ephemeral = true
 		if err := srv.Start(); err != nil {
@@ -116,7 +152,7 @@ func NewClient(
 		cfg.tailscaleClient = tsClient
 	}
 
-	httpClient := &http.Client{}
+	httpClient := http.DefaultClient
 	if cfg.tailscaleClient != nil {
 		httpClient = httpClientFromTsClient(cfg.tailscaleClient)
 	}
@@ -126,13 +162,17 @@ func NewClient(
 	client := &Client{
 		logger: cfg.logger,
 
-		service: client.New(httpClient, acmeProxyURL),
+		dns01Solver: client.NewDNSProvider(client.New(httpClient, serverURL)),
 
-		certCN:    cfg.certCN,
-		certSANs:  cfg.certSANs,
+		certCN:   cfg.certCN,
+		certSANs: cfg.certSANs,
+
 		certReady: make(chan struct{}),
 		cert:      atomic.Pointer[tls.Certificate]{},
 		cache:     cfg.cache,
+		cacheKey:  buildCacheKey(cfg.certCN, cfg.certSANs...),
+
+		acmeClient: acmeClient,
 
 		isOpen:  atomic.Bool{},
 		closers: closers,
@@ -175,6 +215,21 @@ func (c *Client) startRefresher() {
 	if !freshCert {
 		c.refresh()
 	}
+	close(c.certReady)
+
+	// Log initial cert details
+	if initialCert := c.cert.Load(); initialCert != nil {
+		if len(initialCert.Certificate) > 0 {
+			if parsed, err := x509.ParseCertificate(initialCert.Certificate[0]); err == nil {
+				c.logger.Info(
+					"certificate ready",
+					zap.String("cn", parsed.Subject.CommonName),
+					zap.Strings("sans", parsed.DNSNames),
+					zap.String("exp", parsed.NotAfter.Format(time.RFC3339)),
+				)
+			}
+		}
+	}
 
 	interval := time.Hour
 	ticker := time.NewTicker(interval)
@@ -197,16 +252,33 @@ func (c *Client) refresh() {
 		c.logger.Error("failed to generate key and CSR for new certificate", zap.Error(err))
 		return
 	}
-	cert, err := c.service.RequestCertificate(c.refresherCtx, csr)
+
+	chain, err := dns01.GetCertificate(
+		c.refresherCtx,
+		c.logger,
+		c.acmeClient,
+		c.dns01Solver,
+		csr,
+		dns01.WithBundle(true),
+	)
 	if err != nil {
-		c.logger.Error("failed to request new certificate from acme proxy", zap.Error(err))
+		c.logger.Error("failed to refresh certificate via ACME", zap.Error(err))
+		return
+	}
+	if len(chain) < 1 {
+		c.logger.Error("fresh certificate chain has length 0")
+		return
+	}
+	leaf := chain[0]
+
+	cert, err := x509.ParseCertificate(leaf)
+	if err != nil {
+		c.logger.Error("fresh certificate failed parsing as x509.Certificate", zap.Error(err))
 		return
 	}
 
-	go c.tryPersist(cert, priv)
-
 	c.cert.Store(&tls.Certificate{
-		Certificate: [][]byte{cert.Raw},
+		Certificate: chain,
 		PrivateKey:  priv,
 	})
 	c.logger.Info(
@@ -215,38 +287,56 @@ func (c *Client) refresh() {
 		zap.Strings("sans", cert.DNSNames),
 		zap.Time("exp", cert.NotAfter),
 	)
+
+	go c.tryPersist(chain, priv)
 }
 
-func (c *Client) tryPersist(cert *x509.Certificate, key *ecdsa.PrivateKey) {
+func (c *Client) tryPersist(chainDER [][]byte, key *ecdsa.PrivateKey) {
+	var chainData []byte
+	for _, der := range chainDER {
+		chainData = append(chainData, pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: der,
+		})...)
+	}
+
+	if err := c.cache.Put(c.refresherCtx, cacheKeyForCert(c.cacheKey), chainData); err != nil {
+		c.logger.Error("failed to persist certificate chain in cache", zap.Error(err))
+	}
+
 	keyBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
 		c.logger.Error("failed to marshal ECDSA private key", zap.Error(err))
 		return
 	}
+	keyData := pem.EncodeToMemory(&pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: keyBytes,
+	})
 
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes})
-
-	if err := c.cache.Store(certPEM, keyPEM); err != nil {
-		c.logger.Error("failed to persist fresh certificate in cache", zap.Error(err))
+	if err := c.cache.Put(c.refresherCtx, cacheKeyForKey(c.cacheKey), keyData); err != nil {
+		c.logger.Error("failed to persist private key in cache", zap.Error(err))
 	}
 }
 
 func (c *Client) tryLoadCertificateFromCache() bool {
-	certPEM, keyPEM, ok, err := c.cache.Load()
+	chainPEM, err := c.cache.Get(c.refresherCtx, cacheKeyForCert(c.cacheKey))
 	if err != nil {
 		c.logger.Error("failed to load certificate from cache", zap.Error(err))
 		return false
 	}
-	if !ok {
+
+	keyPEM, err := c.cache.Get(c.refresherCtx, cacheKeyForKey(c.cacheKey))
+	if err != nil {
+		c.logger.Error("failed to load key from cache", zap.Error(err))
 		return false
 	}
 
-	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	cert, err := tls.X509KeyPair(chainPEM, keyPEM)
 	if err != nil {
 		c.logger.Error(
 			"failed to materialize cert and key pem data as tls.Certificate",
-			zap.String("cert_pem", string(certPEM)),
+			zap.String("chain_pem", string(chainPEM)),
 			zap.Error(err),
 		)
 		return false
@@ -283,7 +373,6 @@ func needsRefresh(logger *zap.Logger, cert *tls.Certificate, threshold time.Dura
 		return true
 
 	}
-	slices.Sort(parsed.DNSNames)
 
 	if parsed.Subject.CommonName != cn {
 		logger.Info(
@@ -293,16 +382,24 @@ func needsRefresh(logger *zap.Logger, cert *tls.Certificate, threshold time.Dura
 		)
 		return true
 	}
-	if !slices.Equal(parsed.DNSNames, sans) {
+
+	// CAs automatically add CN to SANs, so we must expect it there.
+	expectedSANs := append([]string{}, sans...)
+	if !slices.Contains(sans, cn) {
+		expectedSANs = append(sans, cn)
+	}
+	slices.Sort(expectedSANs)
+
+	if !slices.Equal(parsed.DNSNames, expectedSANs) {
 		logger.Info(
 			"existing certificate SANs do not match requested, will refresh",
 			zap.Strings("cert_sans", parsed.DNSNames),
-			zap.Strings("required_sans", sans),
+			zap.Strings("required_sans", expectedSANs),
 		)
 		return true
 	}
 
-	if time.Until(parsed.NotAfter) > threshold {
+	if time.Until(parsed.NotAfter) < threshold {
 		logger.Info(
 			"existing certificate expires within threshold, will refresh",
 			zap.Time("cert_exp", parsed.NotAfter),
@@ -323,4 +420,27 @@ func httpClientFromTsClient(tsClient *local.Client) *http.Client {
 		},
 		// NOTE: request timeouts will be context-controller, no need to define any here...
 	}
+}
+
+// buildCacheKey builds a unique cache key for a CN and list of SANS.
+// NOTE: the list of SANs must be sorted by the caller.
+func buildCacheKey(cn string, sans ...string) string {
+	h := sha256.New()
+	h.Write([]byte(cn)) // nolint:errcheck
+	h.Write([]byte{0})  // nolint:errcheck
+
+	for _, san := range sans {
+		h.Write([]byte(san)) // nolint:errcheck
+		h.Write([]byte{0})   // nolint:errcheck
+	}
+
+	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+func cacheKeyForCert(baseKey string) string {
+	return fmt.Sprintf("%s-cert", baseKey)
+}
+
+func cacheKeyForKey(baseKey string) string {
+	return fmt.Sprintf("%s-key", baseKey)
 }

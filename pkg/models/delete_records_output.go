@@ -6,7 +6,8 @@ package models
 import "io"
 
 type DeleteRecordsOutput struct {
-	Error string `json:"error,omitempty"`
+	Records []Record `json:"records"`
+	Error   string   `json:"error,omitempty"`
 }
 
 func (o *DeleteRecordsOutput) Write(writer io.Writer) error {

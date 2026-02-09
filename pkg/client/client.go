@@ -6,8 +6,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 
@@ -17,9 +15,6 @@ import (
 type Client interface {
 	CreateRecords(context.Context, *models.CreateRecordsInput) (*models.CreateRecordsOutput, error)
 	DeleteRecords(context.Context, *models.DeleteRecordsInput) (*models.DeleteRecordsOutput, error)
-
-	// FIXME: remove?
-	RequestCertificate(context.Context, *x509.CertificateRequest) (*x509.Certificate, error)
 }
 
 type client struct {
@@ -32,60 +27,6 @@ func New(httpClient *http.Client, apiURL string) Client {
 		httpClient: httpClient,
 		apiURL:     apiURL,
 	}
-}
-
-func (c *client) RequestCertificate(
-	ctx context.Context,
-	csr *x509.CertificateRequest,
-) (*x509.Certificate, error) {
-	// Build HTTP request for acme proxy.
-	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr.Raw})
-	csrReq := models.CSRRequest{CSRPEM: string(csrPEM)}
-
-	var buf bytes.Buffer
-	if err := csrReq.Write(&buf); err != nil {
-		return nil, fmt.Errorf("failed to marshal csr request: %v", err)
-	}
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		fmt.Sprintf("%s/csr", c.apiURL),
-		&buf,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build HTTP request object: %v", err)
-	}
-
-	// Send request.
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute HTTP request: %v", err)
-	}
-
-	// Handle error scenario.
-	if resp.StatusCode != http.StatusOK {
-		var errResp models.CSRResponse
-		if err := errResp.Read(resp.Body); err == nil && errResp.Error != "" {
-			return nil, fmt.Errorf("server returned error (status %d): %s", resp.StatusCode, errResp.Error)
-		}
-		return nil, fmt.Errorf("server returned error (status %d)", resp.StatusCode)
-	}
-
-	// Handle success.
-	var csrResp models.CSRResponse
-	if err := csrResp.Read(resp.Body); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %v", err)
-	}
-	certPEM, _ := pem.Decode([]byte(csrResp.CertificatePEM))
-	if len(csrPEM) == 0 {
-		return nil, fmt.Errorf("failed to decode certificate PEM, raw: %s", csrResp.CertificatePEM)
-	}
-	cert, err := x509.ParseCertificate(certPEM.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate PEM bytes as x509.Certificate object: %v", err)
-	}
-
-	return cert, nil
 }
 
 func (c *client) CreateRecords(

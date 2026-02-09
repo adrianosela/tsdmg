@@ -3,21 +3,31 @@
 
 package certcache
 
-import "errors"
+import (
+	"context"
+	"errors"
+
+	"golang.org/x/crypto/acme/autocert"
+)
 
 type Nop struct{}
 
+var errNopCacheImplementation = errors.New("no-op cache implementation")
+
 // NewNop returns a new no-op implementation of Cache.
-// It always returns no-hit on Load(), and always fails
-// to persist on Store().
-func NewNop() Cache {
+// It always returns error.
+func NewNop() autocert.Cache {
 	return &Nop{}
 }
 
-func (n *Nop) Load() ([]byte, []byte, bool, error) {
-	return nil, nil, false, nil
+func (n *Nop) Put(_ context.Context, _ string, _ []byte) error {
+	return errNopCacheImplementation
 }
 
-func (n *Nop) Store(_ []byte, _ []byte) error {
-	return errors.New("no-op cache cannot store")
+func (n *Nop) Get(_ context.Context, _ string) ([]byte, error) {
+	return nil, errNopCacheImplementation
+}
+
+func (n *Nop) Delete(_ context.Context, _ string) error {
+	return errNopCacheImplementation
 }

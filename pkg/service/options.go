@@ -16,16 +16,3 @@ type Option func(*config)
 func WithLogger(logger *zap.Logger) Option {
 	return func(c *config) { c.logger = logger }
 }
-
-// WithACMEAccountKey is a configuration option to configure an
-// ACME account key. If this option is unset, a key will be
-// generated at runtime.
-func WithACMEAccountKey(logger *zap.Logger) Option {
-	return func(c *config) { c.logger = logger }
-}
-
-// WithACMEAContact is a configuration option to configure
-// contact details for the ACME account e.g.
-func WithACMEAContact(acmeContact []string) Option {
-	return func(c *config) { c.acmeContact = acmeContact }
-}

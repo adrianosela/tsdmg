@@ -85,12 +85,12 @@ func main() {
 		ln = tls.NewListener(ln, &tls.Config{GetCertificate: tsClient.GetCertificate})
 	}
 
-	proxy, err := service.New(context.Background(), tsClient, dnsProvider, service.WithLogger(logger))
+	tsdmg, err := service.New(context.Background(), tsClient, dnsProvider, service.WithLogger(logger))
 	if err != nil {
-		logger.Fatal("failed to initialize tsdmg acme proxy", zap.Error(err))
+		logger.Fatal("failed to initialize tsdmg service", zap.Error(err))
 	}
 
-	if err = proxy.ServeHTTP(ln); err != nil {
+	if err = tsdmg.ServeHTTP(ln); err != nil {
 		logger.Fatal("failed to serve HTTP over tsnet listener", zap.Error(err))
 	}
 }

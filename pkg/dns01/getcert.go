@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/libdns/libdns"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/net/publicsuffix"
 )
@@ -52,10 +52,16 @@ func WithPropagationCheckInterval(interval time.Duration) Option {
 	return func(c *config) { c.checkInterval = interval }
 }
 
+type DNS01Solver interface {
+	libdns.RecordAppender
+	libdns.RecordDeleter
+}
+
 func GetCertificate(
 	ctx context.Context,
+	logger *zap.Logger,
 	acmeClient *acme.Client,
-	dnsProvider dns.Provider,
+	dnsProvider DNS01Solver,
 	csr *x509.CertificateRequest,
 	opts ...Option,
 ) ([][]byte, error) {
@@ -88,11 +94,15 @@ func GetCertificate(
 		}
 	}
 
+	logger.Info("creating ACME order")
+
 	// Create ACME order.
 	order, err := acmeClient.AuthorizeOrder(ctx, authzIDs)
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Info("acme order created, solving all challenges")
 
 	// Solve the DNS-01 challenge for all authorizations
 	var wg sync.WaitGroup
@@ -135,7 +145,13 @@ func GetCertificate(
 				return
 			}
 
-			if err := waitForTXTPropagation(ctx, fqdn, txt, cfg.checkResolvers, cfg.checkInterval); err != nil {
+			challengeFQDN := fmt.Sprintf("_acme-challenge.%s", fqdn)
+			logger.Info(
+				"waiting for propagation of DNS-01 challenge record",
+				zap.String("fqdn", challengeFQDN),
+				zap.String("value", txt),
+			)
+			if err := waitForTXTPropagation(ctx, challengeFQDN, txt, cfg.checkResolvers, cfg.checkInterval); err != nil {
 				errs[i] = err
 				return
 			}
@@ -149,11 +165,14 @@ func GetCertificate(
 			}
 		})
 	}
+
+	logger.Info("waiting for all challenges to be solved")
 	wg.Wait()
 
 	if err := errors.Join(errs...); err != nil {
 		return nil, fmt.Errorf("encountered errors while solving dns-01 challenge: %v", err)
 	}
+	logger.Info("all challenges solved without errors... ordering certificate")
 
 	// 4. Finalize order with CSR
 	derCerts, _, err := acmeClient.CreateOrderCert(
@@ -171,7 +190,7 @@ func GetCertificate(
 
 func createTXT(
 	ctx context.Context,
-	dnsProvider dns.Provider,
+	dnsProvider DNS01Solver,
 	zone string,
 	name string,
 	value string,

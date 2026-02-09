@@ -28,13 +28,126 @@ Essentially:
 - Your Tailscale nodes can request domains to be created/updated/deleted against the `tsdmg` service via HTTP
 - The `tsdmg` service will use incoming requests' Tailscale identity to authenticate and authorize (based on Tailscale ACLs) domain management requests
 
-## How Do I Run It?
+## Service Usage
 
-...TODO: docker
+Run the `tsdmg` service as shown in `./cmd/server/main.go`:
 
+```
+tsdmg, err := service.New(ctx, tsClient, dnsProvider)
+if err != nil {
+    logger.Fatal("failed to initialize tsdmg service", zap.Error(err))
+}
+
+if err = tsdmg.ServeHTTP(ln); err != nil {
+    logger.Fatal("failed to serve HTTP over tsnet listener", zap.Error(err))
+}
+```
+
+The `dns.Provider` interface is implemented for all major DNS providers by `https://github.com/libdns` e.g.:
+
+- Cloudflare: https://github.com/libdns/cloudflare
+- Google Cloud DNS: https://github.com/libdns/googleclouddns
+- GoDaddy: https://github.com/libdns/godaddy
+
+## Client Usage
+
+This package includes a `tsdmg` client capable of requesting, caching, and refreshing public (Let's Encrypt) TLS certificates, by leveraging a `tsdmg` server.
+
+```
+opts := []tsdmg.Option{
+	// Use a real logger.
+	tsdmg.WithLogger(logger),
+
+	// Cache certificates in the filesystem to
+	// avoid hitting the Let's Encrypt rate limit.
+	tsdmg.WithCertificateCache(autocert.DirCache("./certcache")),
+
+	// My laptop is already running the Tailscale desktop
+	// client, so the tsdmg server is already reachable by
+	// node-name i.e. http://tsdmg
+	tsdmg.WithSkipTailscaleNode(true),
+}
+
+client, err := tsdmg.NewClient(
+	ctx,
+	"macbook.tsdmg.net",
+	"http://tsdmg", // my tsdmg server node is called "tsdmg"
+	opts...,
+)
+if err != nil {
+	logger.Fatal("failed to initialize client", zap.Error(err))
+}
+defer client.Close()
+```
+
+## Tailscale ACLs Example
+
+To allow ANY node to retrieve TLS certificates for `<node>.<your-custom-domain>` (e.g. `your-macbook.yourdomain.com`),
+you can add a grant in your ACL as follows:
+
+> The `${node}` will be replaced with the `tsdmg` client node's name by the `tsdmg` server prior to evaluation.
+
+```
+	"grants": [
+		{
+			"src": ["*"],
+			"dst": ["*"],
+			"ip":  ["*"],
+
+			"app": {
+				"tsdmg.net/dns/v1": [
+					{
+						"TXT": ["_acme-challenge.${node}.yourdomain.com"],
+					},
+				],
+			},
+		},
+	],
+```
+
+Say you also want your client to have the ability to create `A` records (e.g. for its own tailnet private IP or any other IP):
+
+```
+	"grants": [
+		{
+			"src": ["*"],
+			"dst": ["*"],
+			"ip":  ["*"],
+
+			"app": {
+				"tsdmg.net/dns/v1": [
+					{
+						"TXT": ["_acme-challenge.${node}.yourdomain.com"],
+						"A":   ["${node}.yourdomain.com"],
+					},
+				],
+			},
+		},
+	],
+```
+
+You can also be explicit, say for a node named `bobcat`:
+
+```
+	"grants": [
+		{
+			"src": ["bobcat"],
+			"dst": ["*"],
+			"ip":  ["*"],
+
+			"app": {
+				"tsdmg.net/dns/v1": [
+					{
+						"TXT": ["_acme-challenge.bobcat.yourdomain.com"],
+					},
+				],
+			},
+		},
+	],
+```
 
 ## TODOs:
 
 - Accept generic loggers, not zap.Logger
 - Better project structure e.g. `internal`, not everything as `pkg`
-- Consider changing `models.Record` to include zone, so that private DNS providers can be used
+- Delete unused code... this started with the `tsdmg` server as an ACME proxy, where the dns01 challenge was solved by the `tsdmg` server, not the client
