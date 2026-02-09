@@ -1,12 +1,14 @@
-module github.com/adrianosela/tsdmg
+module github.com/adrianosela/tsdmg/cmd/server
 
 go 1.25.7
 
+replace github.com/adrianosela/tsdmg => ../../
+
 require (
-	github.com/libdns/libdns v1.1.1
+	github.com/adrianosela/tsdmg v0.0.0-00010101000000-000000000000
+	github.com/libdns/cloudflare v0.2.2
+	github.com/libdns/godaddy v1.1.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.47.0
-	golang.org/x/net v0.48.0
 	tailscale.com v1.94.1
 )
 
@@ -42,6 +44,7 @@ require (
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/jsimonetti/rtnetlink v1.4.0 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
+	github.com/libdns/libdns v1.1.1 // indirect
 	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
 	github.com/mdlayher/socket v0.5.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
@@ -58,7 +61,9 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
+	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
+	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect

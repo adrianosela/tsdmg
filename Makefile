@@ -33,7 +33,7 @@ tsdmg-godaddy: ## Run the tsdmg server with GoDaddy as the DNS provider
 
 .PHONY: build
 build: ## Build the tsdmg server binary for the current OS/ARCH
-	go build -o $(PROGRAM_NAME) ./cmd/server
+	(cd cmd/server && go build -o $$PWD/$(PROGRAM_NAME))
 
 .PHONY: image
 image: ## Build tsdmg Docker image
