@@ -16,9 +16,10 @@ import (
 )
 
 // NOTE: currently unused... throwaway... for later
+// nolint:unused
 func csrHandler(
 	logger *zap.Logger,
-	csrAuthorizer *authorizer.Authorizer,
+	csrAuthorizer *authorizer.CSRAuthorizer,
 	certIssuer issuer.Issuer,
 ) http.Handler {
 	postCSRHandler := csrPOSTHandler(logger, csrAuthorizer, certIssuer)
@@ -33,9 +34,10 @@ func csrHandler(
 	})
 }
 
+// nolint:unused
 func csrPOSTHandler(
 	logger *zap.Logger,
-	csrAuthorizer *authorizer.Authorizer,
+	csrAuthorizer *authorizer.CSRAuthorizer,
 	certIssuer issuer.Issuer,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +66,7 @@ func csrPOSTHandler(
 			return
 		}
 
-		result, err := csrAuthorizer.Authorize(r.Context(), csr, r.RemoteAddr)
+		result, err := csrAuthorizer.AuthorizeCSR(r.Context(), csr, r.RemoteAddr)
 		if err != nil {
 			logger.Error("failed to authorize CSR", zap.Error(err))
 			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)

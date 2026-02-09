@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	capName = "tsdmg.net/csr"
+	csrCapName = "tsdmg.net/csr/v1"
+	dnsCapName = "tsdmg.net/dns/v1"
 )
 
 var (
@@ -45,7 +46,7 @@ func (c *config) validate() error {
 	return nil
 }
 
-type ACMEProxy struct {
+type Service struct {
 	handler http.Handler
 }
 
@@ -54,7 +55,7 @@ func New(
 	tsClient *local.Client,
 	dnsProvider dns.Provider,
 	opts ...Option,
-) (*ACMEProxy, error) {
+) (*Service, error) {
 	cfg := &config{
 		logger:         zap.NewNop(),
 		tsClient:       tsClient,
@@ -77,13 +78,13 @@ func New(
 		cfg.acmeAccountKey = accountKey
 	}
 
-	authzer := authorizer.New(cfg.tsClient, capName)
+	authzer := authorizer.NewDNS(cfg.logger, cfg.tsClient, dnsCapName)
 	certIssuer, err := issuer.NewACME(ctx, cfg.dnsProvider, cfg.acmeAccountKey, cfg.acmeContact...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize acme certiticate issuer: %v", err)
 	}
 
-	return &ACMEProxy{
+	return &Service{
 		handler: handler.GetHandler(
 			cfg.logger,
 			cfg.dnsProvider,
@@ -93,6 +94,6 @@ func New(
 	}, nil
 }
 
-func (p *ACMEProxy) ServeHTTP(ln net.Listener) error {
-	return http.Serve(ln, p.handler)
+func (s *Service) ServeHTTP(ln net.Listener) error {
+	return http.Serve(ln, s.handler)
 }

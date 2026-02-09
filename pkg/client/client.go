@@ -16,7 +16,7 @@ import (
 
 type Client interface {
 	CreateRecords(context.Context, *models.CreateRecordsInput) (*models.CreateRecordsOutput, error)
-	DeleteRecords(context.Context, *models.DeleteRecordsInput) error
+	DeleteRecords(context.Context, *models.DeleteRecordsInput) (*models.DeleteRecordsOutput, error)
 
 	// FIXME: remove?
 	RequestCertificate(context.Context, *x509.CertificateRequest) (*x509.Certificate, error)
@@ -134,11 +134,11 @@ func (c *client) CreateRecords(
 func (c *client) DeleteRecords(
 	ctx context.Context,
 	in *models.DeleteRecordsInput,
-) error {
+) (*models.DeleteRecordsOutput, error) {
 	// Build request.
 	var buf bytes.Buffer
 	if err := in.Write(&buf); err != nil {
-		return fmt.Errorf("failed to marshal csr request: %v", err)
+		return nil, fmt.Errorf("failed to marshal csr request: %v", err)
 	}
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -147,24 +147,29 @@ func (c *client) DeleteRecords(
 		&buf,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to build HTTP request object: %v", err)
+		return nil, fmt.Errorf("failed to build HTTP request object: %v", err)
 	}
 
 	// Send request.
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to execute HTTP request: %v", err)
+		return nil, fmt.Errorf("failed to execute HTTP request: %v", err)
 	}
 
 	// Handle error response.
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK {
 		var errResp models.DeleteRecordsOutput
 		if err := errResp.Read(resp.Body); err == nil && errResp.Error != "" {
-			return fmt.Errorf("server returned error (status %d): %s", resp.StatusCode, errResp.Error)
+			return nil, fmt.Errorf("server returned error (status %d): %s", resp.StatusCode, errResp.Error)
 		}
-		return fmt.Errorf("server returned error (status %d)", resp.StatusCode)
+		return nil, fmt.Errorf("server returned error (status %d)", resp.StatusCode)
 	}
 
-	// Empty response for success.
-	return nil
+	// Handle success response
+	var out models.DeleteRecordsOutput
+	if err := out.Read(resp.Body); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	return &out, nil
 }

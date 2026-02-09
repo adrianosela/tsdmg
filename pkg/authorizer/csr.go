@@ -13,32 +13,26 @@ import (
 	"tailscale.com/util/set"
 )
 
-type cap struct {
+type csrCap struct {
 	Subjects []string `json:"subjects"`
 }
 
-type Authorizer struct {
+type CSRAuthorizer struct {
 	tsClient *local.Client
 	capKey   string
 }
 
-type Result struct {
-	UserProfile      *tailcfg.UserProfile
-	Allowed          bool
-	NotAllowedReason string
-}
-
-func New(
+func NewCSR(
 	tsClient *local.Client,
-	capKey string,
-) *Authorizer {
-	return &Authorizer{
+	csrCapKey string,
+) *CSRAuthorizer {
+	return &CSRAuthorizer{
 		tsClient: tsClient,
-		capKey:   capKey,
+		capKey:   csrCapKey,
 	}
 }
 
-func (a *Authorizer) Authorize(
+func (a *CSRAuthorizer) AuthorizeCSR(
 	ctx context.Context,
 	csr *x509.CertificateRequest,
 	remoteAddr string,
@@ -48,7 +42,7 @@ func (a *Authorizer) Authorize(
 		return nil, fmt.Errorf("failed to retrieve whois data for remote client: %v", err)
 	}
 
-	caps, err := tailcfg.UnmarshalCapJSON[cap](who.CapMap, tailcfg.PeerCapability(a.capKey))
+	caps, err := tailcfg.UnmarshalCapJSON[csrCap](who.CapMap, tailcfg.PeerCapability(a.capKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal capabilities JSON: %v", err)
 	}

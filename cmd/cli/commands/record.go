@@ -24,6 +24,12 @@ var recordCreateCmd = &cobra.Command{
 	Run:   recordCreateHandler,
 }
 
+var recordDeleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete a DNS record",
+	Run:   recordDeleteHandler,
+}
+
 func recordCreateHandler(cmd *cobra.Command, args []string) {
 	cl := client.New(http.DefaultClient, serverURL)
 
@@ -52,4 +58,27 @@ func recordCreateHandler(cmd *cobra.Command, args []string) {
 		fmt.Printf("  Value: %s\n", output.Records[0].Value)
 		fmt.Printf("  TTL: %d\n", output.Records[0].TTL)
 	}
+}
+
+func recordDeleteHandler(cmd *cobra.Command, args []string) {
+	cl := client.New(http.DefaultClient, serverURL)
+
+	record := models.Record{
+		Type:  recordType,
+		FQDN:  recordFQDN,
+		Value: recordValue,
+	}
+	input := &models.DeleteRecordsInput{
+		Records: []models.Record{record},
+	}
+
+	output, err := cl.DeleteRecords(cmd.Context(), input)
+	if err != nil {
+		exitWithError("failed to create record: %v", err)
+	}
+	if output.Error != "" {
+		exitWithError("server failed to create record: %s", output.Error)
+	}
+
+	fmt.Println("DNS record deleted successfully!")
 }

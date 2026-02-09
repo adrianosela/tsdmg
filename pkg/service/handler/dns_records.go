@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/models"
 	"github.com/adrianosela/tsdmg/pkg/service/handler/util"
@@ -18,8 +19,9 @@ import (
 func dnsRecordsHandler(
 	logger *zap.Logger,
 	dnsProvider dns.Provider,
+	dnsAuthorizer *authorizer.DNSAuthorizer,
 ) http.Handler {
-	postDNSRecordsHandler := dnsRecordsPOSTHandler(logger, dnsProvider)
+	postDNSRecordsHandler := dnsRecordsPOSTHandler(logger, dnsProvider, dnsAuthorizer)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -34,6 +36,7 @@ func dnsRecordsHandler(
 func dnsRecordsPOSTHandler(
 	logger *zap.Logger,
 	dnsProvider dns.Provider,
+	dnsAuthorizer *authorizer.DNSAuthorizer,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logger.With(
@@ -45,6 +48,17 @@ func dnsRecordsPOSTHandler(
 		if err := req.Read(r.Body); err != nil {
 			logger.Error("failed to parse request JSON", zap.Error(err))
 			respondError(logger, w, "invalid request format", http.StatusBadRequest)
+			return
+		}
+
+		result, err := dnsAuthorizer.AuthorizeRecords(r.Context(), r.RemoteAddr, req.Records...)
+		if err != nil {
+			logger.Error("failed to authorize DNS request", zap.Error(err))
+			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)
+			return
+		}
+		if !result.Allowed {
+			respondError(logger, w, result.NotAllowedReason, http.StatusUnauthorized)
 			return
 		}
 

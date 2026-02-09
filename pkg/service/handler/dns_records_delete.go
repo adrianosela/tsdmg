@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/models"
 	"github.com/adrianosela/tsdmg/pkg/service/handler/util"
@@ -18,8 +19,9 @@ import (
 func dnsRecordsDeleteHandler(
 	logger *zap.Logger,
 	dnsProvider dns.Provider,
+	dnsAuthorizer *authorizer.DNSAuthorizer,
 ) http.Handler {
-	postDNSRecordsDeleteHandler := dnsRecordsDeletePOSTHandler(logger, dnsProvider)
+	postDNSRecordsDeleteHandler := dnsRecordsDeletePOSTHandler(logger, dnsProvider, dnsAuthorizer)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -34,6 +36,7 @@ func dnsRecordsDeleteHandler(
 func dnsRecordsDeletePOSTHandler(
 	logger *zap.Logger,
 	dnsProvider dns.Provider,
+	dnsAuthorizer *authorizer.DNSAuthorizer,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logger.With(
@@ -45,6 +48,17 @@ func dnsRecordsDeletePOSTHandler(
 		if err := req.Read(r.Body); err != nil {
 			logger.Error("failed to parse request JSON", zap.Error(err))
 			respondError(logger, w, "invalid request format", http.StatusBadRequest)
+			return
+		}
+
+		result, err := dnsAuthorizer.AuthorizeRecords(r.Context(), r.RemoteAddr, req.Records...)
+		if err != nil {
+			logger.Error("failed to authorize DNS request", zap.Error(err))
+			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)
+			return
+		}
+		if !result.Allowed {
+			respondError(logger, w, result.NotAllowedReason, http.StatusUnauthorized)
 			return
 		}
 
@@ -63,19 +77,50 @@ func dnsRecordsDeletePOSTHandler(
 			}
 		}
 
-		deletedRecords := []models.Record{}
 		erroredZones := []error{}
-		for zone, records := range libdnsRecords {
-			created, err := dnsProvider.DeleteRecords(r.Context(), zone, records)
+		for zone, recordsToDelete := range libdnsRecords {
+
+			// We need to get the records first because some DNS providers
+			// will include a unique ID in the inner record object, required
+			// for deletion.
+			existingRecords, err := dnsProvider.GetRecords(r.Context(), zone)
 			if err != nil {
 				erroredZones = append(
 					erroredZones,
-					fmt.Errorf("failed to create records in zone \"%s\": %v", zone, err),
+					fmt.Errorf("failed to get records in zone \"%s\": %v", zone, err),
 				)
 				continue
 			}
-			for _, libdnsRecord := range created {
-				deletedRecords = append(deletedRecords, *util.LibDNSToModel(libdnsRecord, zone))
+
+			var recordsWithIDs []libdns.Record
+			for _, recordToDelete := range recordsToDelete {
+				deleteRR := recordToDelete.RR()
+				for _, existing := range existingRecords {
+					existingRR := existing.RR()
+					if existingRR.Type == deleteRR.Type &&
+						existingRR.Name == deleteRR.Name &&
+						existingRR.Data == deleteRR.Data {
+						recordsWithIDs = append(recordsWithIDs, existing)
+						break
+					}
+				}
+			}
+
+			if len(recordsWithIDs) == 0 {
+				erroredZones = append(
+					erroredZones,
+					fmt.Errorf("no matching records found to delete in zone \"%s\"", zone),
+				)
+				continue
+			}
+
+			_, err = dnsProvider.DeleteRecords(r.Context(), zone, recordsWithIDs)
+			if err != nil {
+				erroredZones = append(
+					erroredZones,
+					fmt.Errorf("failed to delete records in zone \"%s\": %v", zone, err),
+				)
+				continue
 			}
 		}
 
@@ -83,10 +128,7 @@ func dnsRecordsDeletePOSTHandler(
 		if err := errors.Join(erroredZones...); err != nil {
 			errMsg = err.Error()
 		}
-		out := &models.DeleteRecordsOutput{
-			Records: deletedRecords,
-			Error:   errMsg,
-		}
+		out := &models.DeleteRecordsOutput{Error: errMsg}
 		if err := out.Write(w); err != nil {
 			logger.Error("failed to encode reqsponse as JSON", zap.Error(err))
 			respondError(logger, w, "an unknown error occured... try again later.", http.StatusInternalServerError)

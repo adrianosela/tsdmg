@@ -18,5 +18,6 @@ import "github.com/libdns/libdns"
 //	}
 type Provider interface {
 	libdns.RecordAppender
+	libdns.RecordGetter
 	libdns.RecordDeleter
 }

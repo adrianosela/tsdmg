@@ -15,11 +15,11 @@ import (
 func GetHandler(
 	logger *zap.Logger,
 	dnsProvider dns.Provider,
-	csrAuthorizer *authorizer.Authorizer,
+	dnsAuthorizer *authorizer.DNSAuthorizer,
 	certIssuer issuer.Issuer,
 ) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/dns/records", dnsRecordsHandler(logger, dnsProvider))
-	mux.Handle("/dns/records/delete", dnsRecordsDeleteHandler(logger, dnsProvider))
+	mux.Handle("/dns/records", dnsRecordsHandler(logger, dnsProvider, dnsAuthorizer))
+	mux.Handle("/dns/records/delete", dnsRecordsDeleteHandler(logger, dnsProvider, dnsAuthorizer))
 	return mux
 }
