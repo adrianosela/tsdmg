@@ -15,7 +15,6 @@ func ModelToLibDNS(r models.Record) (libdns.Record, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to split FQDN into zone and name: %v", err)
 	}
-	fmt.Printf("DEBUG: FQDN=%q zone=%q name=%q\n", r.FQDN, zone, name)
 
 	var record libdns.Record
 	switch r.Type {
@@ -46,10 +45,15 @@ func ModelToLibDNS(r models.Record) (libdns.Record, string, error) {
 			IP:   addr,
 		}
 	case "CNAME":
+		// Add trailing dot if not already present.
+		target := r.Value
+		if target != "" && target[len(target)-1] != '.' {
+			target = target + "."
+		}
 		record = libdns.CNAME{
 			Name:   name,
 			TTL:    time.Second * time.Duration(r.TTL),
-			Target: r.Value,
+			Target: target,
 		}
 	case "TXT":
 		record = libdns.TXT{
