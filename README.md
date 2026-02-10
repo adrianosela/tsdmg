@@ -200,7 +200,7 @@ you can add a grant in your ACL as follows:
 	],
 ```
 
-Say you also want your client to have the ability to create `A` records (e.g. for its own tailnet private IP or any other IP):
+Say you also want your client to have the ability to create `A` and `AAAA` records (e.g. for its own tailnet private IP or any other IP):
 
 ```
 	"grants": [
@@ -212,28 +212,9 @@ Say you also want your client to have the ability to create `A` records (e.g. fo
 			"app": {
 				"tsdmg.net/dns/v1": [
 					{
-						"TXT": ["_acme-challenge.${node}.yourdomain.com"],
-						"A":   ["${node}.yourdomain.com"],
-					},
-				],
-			},
-		},
-	],
-```
-
-You can also be explicit, say for a node named `bobcat`:
-
-```
-	"grants": [
-		{
-			"src": ["bobcat"],
-			"dst": ["*"],
-			"ip":  ["*"],
-
-			"app": {
-				"tsdmg.net/dns/v1": [
-					{
-						"TXT": ["_acme-challenge.bobcat.yourdomain.com"],
+						"TXT":  ["_acme-challenge.${node}.yourdomain.com"],
+						"A":    ["${node}.yourdomain.com"],
+						"AAAA": ["${node}.yourdomain.com"],
 					},
 				],
 			},
