@@ -26,7 +26,7 @@ tsdmg: ## Run the tsdmg server (with Cloudflare as the DNS provider)
 
 .PHONY: build
 build: ## Build the tsdmg server binary for the current OS/ARCH
-	(cd cmd/server && go build -o $$PWD/$(PROGRAM_NAME))
+	(cd cmd/server && go build -o $(CURDIR)/$(PROGRAM_NAME))
 
 .PHONY: image
 image: ## Build tsdmg Docker image
