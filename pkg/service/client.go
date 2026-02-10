@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Adriano Sela Aviles (@adrianosela)
 // SPDX-License-Identifier: MIT
 
-package client
+package service
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ type client struct {
 	apiURL     string
 }
 
-func New(httpClient *http.Client, apiURL string) Client {
+func NewClient(httpClient *http.Client, apiURL string) Client {
 	return &client{
 		httpClient: httpClient,
 		apiURL:     apiURL,

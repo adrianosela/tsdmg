@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	httpc "github.com/adrianosela/tsdmg/pkg/client"
 	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/service"
 	"go.uber.org/zap"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
@@ -42,7 +42,7 @@ type Client interface {
 }
 
 type client struct {
-	httpClient httpc.Client
+	svcClient service.Client
 
 	isOpen  atomic.Bool
 	closers []func() error
@@ -93,15 +93,15 @@ func NewClient(ctx context.Context, serverURL string, opts ...Option) (Client, e
 	}
 
 	return &client{
-		httpClient: httpc.New(httpClient, cfg.serverURL),
-		isOpen:     atomic.Bool{},
-		closers:    closers,
+		svcClient: service.NewClient(httpClient, cfg.serverURL),
+		isOpen:    atomic.Bool{},
+		closers:   closers,
 	}, nil
 }
 
 // CreateRecords creates the requested DNS records via the tsdmg server.
 func (c *client) CreateRecords(ctx context.Context, records ...models.Record) ([]models.Record, error) {
-	out, err := c.httpClient.CreateRecords(ctx, &models.CreateRecordsInput{Records: records})
+	out, err := c.svcClient.CreateRecords(ctx, &models.CreateRecordsInput{Records: records})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create records using tsdmg http client: %v", err)
 	}
@@ -110,7 +110,7 @@ func (c *client) CreateRecords(ctx context.Context, records ...models.Record) ([
 
 // DeleteRecords deletes the requested DNS records via the tsdmg server.
 func (c *client) DeleteRecords(ctx context.Context, records ...models.Record) ([]models.Record, error) {
-	out, err := c.httpClient.DeleteRecords(ctx, &models.DeleteRecordsInput{Records: records})
+	out, err := c.svcClient.DeleteRecords(ctx, &models.DeleteRecordsInput{Records: records})
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete records using tsdmg http client: %v", err)
 	}
@@ -122,7 +122,7 @@ func (c *client) DeleteRecords(ctx context.Context, records ...models.Record) ([
 // is, the tsdmg server decides which domains to create records in, but all
 // records will be of the form ${node}.${domain}.
 func (c *client) Register(ctx context.Context) ([]models.Record, error) {
-	out, err := c.httpClient.Register(ctx)
+	out, err := c.svcClient.Register(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to register node using tsdmg http client: %v", err)
 	}
