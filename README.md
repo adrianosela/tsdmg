@@ -245,4 +245,3 @@ You can also be explicit, say for a node named `bobcat`:
 
 - Accept generic loggers, not zap.Logger
 - Better project structure e.g. `internal`, not everything as `pkg`
-- Delete unused code... this started with the `tsdmg` server as an ACME proxy, where the dns01 challenge was solved by the `tsdmg` server, not the client
