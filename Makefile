@@ -22,6 +22,7 @@ tsdmg: ## Run the tsdmg server (with Cloudflare as the DNS provider)
 		-ts-authkey=$$TSDMG_TS_AUTHKEY \
 		-dns-provider=cloudflare \
 		-cloudflare-api-token=$$TSDMG_CLOUDFLARE_API_TOKEN \
+		-domain=$(TSDMG_DOMAIN) \
 		-registration-domain=$(TSDMG_DOMAIN))
 
 .PHONY: tsdmg-docker
@@ -32,6 +33,7 @@ tsdmg-docker: ## Run the tsdmg server image (with Cloudflare as the DNS provider
 		-ts-authkey=$$TSDMG_TS_AUTHKEY \
 		-dns-provider=cloudflare \
 		-cloudflare-api-token=$$TSDMG_CLOUDFLARE_API_TOKEN \
+		-domain=$(TSDMG_DOMAIN) \
 		-registration-domain=$(TSDMG_DOMAIN)
 
 .PHONY: build

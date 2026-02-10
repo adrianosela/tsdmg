@@ -21,6 +21,7 @@ func dnsRecordsRegisterHandler(
 	tsClient *local.Client,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
+	zoneAllowlist []string,
 	regZones []string,
 ) http.Handler {
 	postDNSRecordsRegisterHandler := dnsRecordsRegisterPOSTHandler(
@@ -28,6 +29,7 @@ func dnsRecordsRegisterHandler(
 		tsClient,
 		dnsProvider,
 		dnsAuthorizer,
+		zoneAllowlist,
 		regZones,
 	)
 
@@ -46,6 +48,7 @@ func dnsRecordsRegisterPOSTHandler(
 	tsClient *local.Client,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
+	zoneAllowlist []string,
 	regZones []string,
 ) http.Handler {
 	if len(regZones) == 0 {
@@ -120,7 +123,7 @@ func dnsRecordsRegisterPOSTHandler(
 
 		libdnsRecords := make(map[string][]libdns.Record, len(records))
 		for i, requestedRecord := range records {
-			record, zone, err := requestedRecord.ToLibDNS()
+			record, zone, err := requestedRecord.ToLibDNS(zoneAllowlist...)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to convert requested record at index %d to libdns format: %v", i, err)
 				respondError(logger, w, errMsg, http.StatusBadRequest)

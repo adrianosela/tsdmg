@@ -19,8 +19,8 @@ type Record struct {
 	TTL   uint32 `json:"ttl"`
 }
 
-func (r *Record) ToLibDNS() (libdns.Record, string, error) {
-	zone, name, err := dns.SplitZone(r.FQDN)
+func (r *Record) ToLibDNS(zoneAllowlist ...string) (libdns.Record, string, error) {
+	zone, name, err := dns.SplitZone(r.FQDN, zoneAllowlist...)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to split FQDN into zone and name: %v", err)
 	}

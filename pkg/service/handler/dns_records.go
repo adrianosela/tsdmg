@@ -19,8 +19,9 @@ func dnsRecordsHandler(
 	logger *zap.Logger,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
+	zoneAllowlist []string,
 ) http.Handler {
-	postDNSRecordsHandler := dnsRecordsPOSTHandler(logger, dnsProvider, dnsAuthorizer)
+	postDNSRecordsHandler := dnsRecordsPOSTHandler(logger, dnsProvider, dnsAuthorizer, zoneAllowlist)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -36,6 +37,7 @@ func dnsRecordsPOSTHandler(
 	logger *zap.Logger,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
+	zoneAllowlist []string,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logger.With(
@@ -63,7 +65,7 @@ func dnsRecordsPOSTHandler(
 
 		libdnsRecords := make(map[string][]libdns.Record, len(req.Records))
 		for i, requestedRecord := range req.Records {
-			record, zone, err := requestedRecord.ToLibDNS()
+			record, zone, err := requestedRecord.ToLibDNS(zoneAllowlist...)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to convert requested record at index %d to libdns format: %v", i, err)
 				respondError(logger, w, errMsg, http.StatusBadRequest)

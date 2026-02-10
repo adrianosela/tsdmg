@@ -50,6 +50,7 @@ var (
 	hostname  string
 
 	// dns management config
+	domains    stringSlice
 	regDomains stringSlice
 
 	// dns provider creds
@@ -72,7 +73,8 @@ func parseFlags() {
 	flag.StringVar(&addr, "addr", ":80", "Address to listen on")
 	flag.StringVar(&tsAuthKey, "ts-authkey", "", "Tailscale auth key")
 	flag.StringVar(&hostname, "hostname", "tsdmg", "Hostname to use for Tailscale machine")
-	flag.Var(&regDomains, "registration-domain", "Domain in which to create A/AAAA records for registering Tailscale nodes (repeatable)")
+	flag.Var(&domains, "domain", "Domain management allowlist (repeatable)")
+	flag.Var(&regDomains, "registration-domain", "Domain in which to create A/AAAA records for registering Tailscale nodes (repeatable, if \"domain\" is also set, this MUST be a subset of that)")
 	flag.StringVar(&dnsProviderID, "dns-provider", "", fmt.Sprintf("Which DNS provider to use (one of [ %s ])", strings.Join(allowedProviders, ", ")))
 	flag.StringVar(&awsAccessKeyID, "aws-access-key-id", "", "AWS Access Key ID (used when set if dns-provider is \"aws\")")
 	flag.StringVar(&awsSecretAccessKey, "aws-secret-access-key", "", "AWS Secret Access Key (used when set if dns-provider is \"aws\")")
@@ -196,14 +198,15 @@ func main() {
 		logger.Fatal("failed to initialize tailscale local client", zap.Error(err))
 	}
 
-	// wrap tcp listener in tls listener if port is HTTPS port
+	// Wrap tcp listener in tls listener if port is HTTPS port
 	if addr == ":443" {
 		ln = tls.NewListener(ln, &tls.Config{GetCertificate: tsClient.GetCertificate})
 	}
 
 	opts := []service.Option{
 		service.WithLogger(logger),
-		service.WithRegistration(regDomains...),
+		service.WithDomains(domains...),
+		service.WithRegistrationDomains(regDomains...),
 	}
 	tsdmg, err := service.New(context.Background(), tsClient, dnsProvider, opts...)
 	if err != nil {

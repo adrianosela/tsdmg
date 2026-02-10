@@ -17,11 +17,12 @@ func GetHandler(
 	tsClient *local.Client,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
+	zoneAllowlist []string,
 	regZones []string,
 ) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/dns/v1/records", dnsRecordsHandler(logger, dnsProvider, dnsAuthorizer))
-	mux.Handle("/dns/v1/records/delete", dnsRecordsDeleteHandler(logger, dnsProvider, dnsAuthorizer))
-	mux.Handle("/dns/v1/records/register", dnsRecordsRegisterHandler(logger, tsClient, dnsProvider, dnsAuthorizer, regZones))
+	mux.Handle("/dns/v1/records", dnsRecordsHandler(logger, dnsProvider, dnsAuthorizer, zoneAllowlist))
+	mux.Handle("/dns/v1/records/delete", dnsRecordsDeleteHandler(logger, dnsProvider, dnsAuthorizer, zoneAllowlist))
+	mux.Handle("/dns/v1/records/register", dnsRecordsRegisterHandler(logger, tsClient, dnsProvider, dnsAuthorizer, zoneAllowlist, regZones))
 	return mux
 }

@@ -17,6 +17,25 @@ func WithLogger(logger *zap.Logger) Option {
 	return func(c *config) { c.logger = logger }
 }
 
+// WithDomains is a configuration option to define which DNS
+// zones the tsdmg server is allowed to manage. If this option
+// is not set, the server assumes it can manage any domain.
+//
+// This option also helps the tsdmg server determine in which
+// zone a requested record will be created in: if the option
+// is set, a requested record will be created in the zone in
+// this list that has the longest matching suffix to the FQDN
+// in the request.
+//
+// If this option is not set, a requested record will be created
+// in a zone inferred from Public Suffix List data.
+// See https://publicsuffix.org/ for more info.
+func WithDomains(domains ...string) Option {
+	return func(c *config) {
+		c.domains = append([]string{}, domains...)
+	}
+}
+
 // WithRegistration is a configuration option to enable the self
 // registration endpoint (POST /dns/v1/register). This endpoint
 // ensures the presense of A and AAAA records for the client's
@@ -45,8 +64,11 @@ func WithLogger(logger *zap.Logger) Option {
 //	},
 //
 // ],
-func WithRegistration(domains ...string) Option {
+//
+// If both this option and WithDomains are set, the domains
+// passed here MUST be a subset of those passed to WithDomains.
+func WithRegistrationDomains(domains ...string) Option {
 	return func(c *config) {
-		c.registrationDomains = append([]string{}, domains...)
+		c.regDomains = append([]string{}, domains...)
 	}
 }
