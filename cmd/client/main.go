@@ -37,6 +37,13 @@ func main() {
 
 	logger.Info("tsdmg client initialized")
 
+	records, err := client.Register(ctx)
+	if err != nil {
+		logger.Fatal("failed to register node", zap.Error(err))
+	}
+
+	logger.Info("node registered with tsdmg server", zap.Any("records", records))
+
 	certManagerOpts := []tsautocert.Option{
 		// Use a real logger.
 		tsautocert.WithLogger(logger),

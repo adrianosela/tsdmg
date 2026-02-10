@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"log"
+	"strings"
 
 	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/service"
@@ -16,6 +17,17 @@ import (
 	"go.uber.org/zap"
 	"tailscale.com/tsnet"
 )
+
+type stringSlice []string
+
+func (s *stringSlice) String() string {
+	return strings.Join(*s, ",")
+}
+
+func (s *stringSlice) Set(value string) error {
+	*s = append(*s, value)
+	return nil
+}
 
 func main() {
 	logger, err := zap.NewProduction()
@@ -29,13 +41,14 @@ func main() {
 	var cloudflareAPIToken string
 	var godaddyAPIToken string
 	var hostname string
-
-	flag.StringVar(&addr, "addr", ":80", "address to listen on")
+	var regDomains stringSlice
+	flag.StringVar(&addr, "addr", ":80", "Address to listen on")
 	flag.StringVar(&tsAuthKey, "ts-authkey", "", "Tailscale auth key")
 	flag.StringVar(&dnsProviderID, "dns-provider", "", "Which DNS provider to use (cloudflare, godaddy)")
 	flag.StringVar(&cloudflareAPIToken, "cloudflare-api-token", "", "Cloudflare API token (required if dns-provider is \"cloudflare\")")
 	flag.StringVar(&godaddyAPIToken, "godaddy-api-token", "", "GoDaddy API token (required if dns-provider is \"godaddy\")")
-	flag.StringVar(&hostname, "hostname", "tsdmg", "hostname to use for Tailscale machine")
+	flag.StringVar(&hostname, "hostname", "tsdmg", "Hostname to use for Tailscale machine")
+	flag.Var(&regDomains, "registration-domain", "Domain in which to create A/AAAA records for registering Tailscale nodes (repeatable)")
 	flag.Parse()
 
 	if tsAuthKey == "" {
@@ -85,7 +98,11 @@ func main() {
 		ln = tls.NewListener(ln, &tls.Config{GetCertificate: tsClient.GetCertificate})
 	}
 
-	tsdmg, err := service.New(context.Background(), tsClient, dnsProvider, service.WithLogger(logger))
+	opts := []service.Option{
+		service.WithLogger(logger),
+		service.WithRegistration(regDomains...),
+	}
+	tsdmg, err := service.New(context.Background(), tsClient, dnsProvider, opts...)
 	if err != nil {
 		logger.Fatal("failed to initialize tsdmg service", zap.Error(err))
 	}

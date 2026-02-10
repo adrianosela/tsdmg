@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Adriano Sela Aviles (@adrianosela)
+// SPDX-License-Identifier: MIT
+
 package dns01
 
 import (
@@ -6,7 +9,6 @@ import (
 
 	"github.com/adrianosela/tsdmg"
 	"github.com/adrianosela/tsdmg/pkg/models"
-	"github.com/adrianosela/tsdmg/pkg/service/handler/util"
 	"github.com/libdns/libdns"
 )
 
@@ -27,7 +29,7 @@ func NewTSDMGSolver(client tsdmg.Client) DNS01Solver {
 func (s *tsdmgDNS01Solver) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
 	modelRecords := []models.Record{}
 	for _, record := range recs {
-		modelRecords = append(modelRecords, *util.LibDNSToModel(record, zone))
+		modelRecords = append(modelRecords, *models.RecordFromLibDNS(record, zone))
 	}
 
 	created, err := s.client.CreateRecords(ctx, modelRecords...)
@@ -37,7 +39,7 @@ func (s *tsdmgDNS01Solver) AppendRecords(ctx context.Context, zone string, recs 
 
 	libDNSRecords := []libdns.Record{}
 	for _, record := range created {
-		libDNSRecord, _, err := util.ModelToLibDNS(record)
+		libDNSRecord, _, err := record.ToLibDNS()
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert record in tsdmg api response to libdns format: %v", err)
 		}
@@ -50,7 +52,7 @@ func (s *tsdmgDNS01Solver) AppendRecords(ctx context.Context, zone string, recs 
 func (s *tsdmgDNS01Solver) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
 	modelRecords := []models.Record{}
 	for _, record := range recs {
-		modelRecords = append(modelRecords, *util.LibDNSToModel(record, zone))
+		modelRecords = append(modelRecords, *models.RecordFromLibDNS(record, zone))
 	}
 
 	deleted, err := s.client.DeleteRecords(ctx, modelRecords...)
@@ -60,7 +62,7 @@ func (s *tsdmgDNS01Solver) DeleteRecords(ctx context.Context, zone string, recs 
 
 	libDNSRecords := []libdns.Record{}
 	for _, record := range deleted {
-		libDNSRecord, _, err := util.ModelToLibDNS(record)
+		libDNSRecord, _, err := record.ToLibDNS()
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert record in tsdmg api response to libdns format: %v", err)
 		}

@@ -11,7 +11,6 @@ import (
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/models"
-	"github.com/adrianosela/tsdmg/pkg/service/handler/util"
 	"github.com/libdns/libdns"
 	"go.uber.org/zap"
 )
@@ -64,7 +63,7 @@ func dnsRecordsPOSTHandler(
 
 		libdnsRecords := make(map[string][]libdns.Record, len(req.Records))
 		for i, requestedRecord := range req.Records {
-			record, zone, err := util.ModelToLibDNS(requestedRecord)
+			record, zone, err := requestedRecord.ToLibDNS()
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to convert requested record at index %d to libdns format: %v", i, err)
 				respondError(logger, w, errMsg, http.StatusBadRequest)
@@ -89,7 +88,7 @@ func dnsRecordsPOSTHandler(
 				continue
 			}
 			for _, libdnsRecord := range created {
-				createdRecords = append(createdRecords, *util.LibDNSToModel(libdnsRecord, zone))
+				createdRecords = append(createdRecords, *models.RecordFromLibDNS(libdnsRecord, zone))
 			}
 		}
 

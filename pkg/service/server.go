@@ -23,18 +23,23 @@ const (
 )
 
 var (
-	errNilLogger = errors.New("logger must not be nil")
+	errNilLogger   = errors.New("logger must not be nil")
+	errNilTsClient = errors.New("tsClient must not be nil")
 )
 
 type config struct {
-	logger      *zap.Logger
-	tsClient    *local.Client
-	dnsProvider dns.Provider
+	logger              *zap.Logger
+	tsClient            *local.Client
+	dnsProvider         dns.Provider
+	registrationDomains []string
 }
 
 func (c *config) validate() error {
 	if c.logger == nil {
 		return errNilLogger
+	}
+	if c.tsClient == nil {
+		return errNilTsClient
 	}
 	return nil
 }
@@ -50,9 +55,10 @@ func New(
 	opts ...Option,
 ) (*Service, error) {
 	cfg := &config{
-		logger:      zap.NewNop(),
-		tsClient:    tsClient,
-		dnsProvider: dnsProvider,
+		logger:              zap.NewNop(),
+		tsClient:            tsClient,
+		dnsProvider:         dnsProvider,
+		registrationDomains: nil,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -61,13 +67,13 @@ func New(
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	authzer := authorizer.NewDNS(cfg.logger, cfg.tsClient, dnsCapName)
-
 	return &Service{
 		handler: handler.GetHandler(
 			cfg.logger,
+			cfg.tsClient,
 			cfg.dnsProvider,
-			authzer,
+			authorizer.NewDNS(cfg.logger, cfg.tsClient, dnsCapName),
+			cfg.registrationDomains,
 		),
 	}, nil
 }

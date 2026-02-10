@@ -15,6 +15,7 @@ import (
 type Client interface {
 	CreateRecords(context.Context, *models.CreateRecordsInput) (*models.CreateRecordsOutput, error)
 	DeleteRecords(context.Context, *models.DeleteRecordsInput) (*models.DeleteRecordsOutput, error)
+	Register(context.Context) (*models.RegisterOutput, error)
 }
 
 type client struct {
@@ -41,7 +42,7 @@ func (c *client) CreateRecords(
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		fmt.Sprintf("%s/dns/records", c.apiURL),
+		fmt.Sprintf("%s/dns/v1/records", c.apiURL),
 		&buf,
 	)
 	if err != nil {
@@ -84,7 +85,7 @@ func (c *client) DeleteRecords(
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		fmt.Sprintf("%s/dns/records/delete", c.apiURL),
+		fmt.Sprintf("%s/dns/v1/records/delete", c.apiURL),
 		&buf,
 	)
 	if err != nil {
@@ -108,6 +109,44 @@ func (c *client) DeleteRecords(
 
 	// Handle success response
 	var out models.DeleteRecordsOutput
+	if err := out.Read(resp.Body); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	return &out, nil
+}
+
+func (c *client) Register(
+	ctx context.Context,
+) (*models.RegisterOutput, error) {
+	// Build request.
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		fmt.Sprintf("%s/dns/v1/records/register", c.apiURL),
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build HTTP request object: %v", err)
+	}
+
+	// Send request.
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute HTTP request: %v", err)
+	}
+
+	// Handle error response.
+	if resp.StatusCode != http.StatusOK {
+		var errResp models.RegisterOutput
+		if err := errResp.Read(resp.Body); err == nil && errResp.Error != "" {
+			return nil, fmt.Errorf("server returned error (status %d): %s", resp.StatusCode, errResp.Error)
+		}
+		return nil, fmt.Errorf("server returned error (status %d)", resp.StatusCode)
+	}
+
+	// Handle success response
+	var out models.RegisterOutput
 	if err := out.Read(resp.Body); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}
