@@ -10,7 +10,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/adrianosela/tsdmg/pkg/dns"
 	"github.com/adrianosela/tsdmg/pkg/service"
@@ -207,7 +210,26 @@ func main() {
 		logger.Fatal("failed to initialize tsdmg service", zap.Error(err))
 	}
 
-	if err = tsdmg.ServeHTTP(ln); err != nil {
-		logger.Fatal("failed to serve HTTP over tsnet listener", zap.Error(err))
+	// Set up signal handling for graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+
+	// Run server in a goroutine
+	errCh := make(chan error, 1)
+	defer close(errCh)
+	go func() {
+		logger.Info("server starting", zap.String("addr", addr))
+		if err := tsdmg.ServeHTTP(ln); err != nil {
+			errCh <- err
+		}
+	}()
+
+	// Wait for shutdown signal or error
+	select {
+	case sig := <-sigCh:
+		logger.Info("received signal, shutting down gracefully", zap.String("signal", sig.String()))
+	case err := <-errCh:
+		logger.Fatal("server error", zap.Error(err))
 	}
 }
