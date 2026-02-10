@@ -36,7 +36,7 @@ func WithDomains(domains ...string) Option {
 	}
 }
 
-// WithRegistration is a configuration option to enable the self
+// WithNodeRegDomains is a configuration option to enable the self
 // registration endpoint (POST /dns/v1/register). This endpoint
 // ensures the presense of A and AAAA records for the client's
 // Tailscale private IPv4 and IPv6 addresses respectively. If this
@@ -67,8 +67,8 @@ func WithDomains(domains ...string) Option {
 //
 // If both this option and WithDomains are set, the domains
 // passed here MUST be a subset of those passed to WithDomains.
-func WithRegistrationDomains(domains ...string) Option {
+func WithNodeRegDomains(domains ...string) Option {
 	return func(c *config) {
-		c.regDomains = append([]string{}, domains...)
+		c.nodeRegDomains = append([]string{}, domains...)
 	}
 }

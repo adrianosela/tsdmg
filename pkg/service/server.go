@@ -27,15 +27,15 @@ const (
 var (
 	errNilLogger           = errors.New("logger must not be nil")
 	errNilTsClient         = errors.New("tsClient must not be nil")
-	errRegDomainNotAllowed = errors.New("a domain in registration-domains was not present in domains")
+	errRegDomainNotAllowed = errors.New("a domain in node-reg-domains was not present in domains")
 )
 
 type config struct {
-	logger      *zap.Logger
-	tsClient    *local.Client
-	dnsProvider dns.Provider
-	domains     []string
-	regDomains  []string
+	logger         *zap.Logger
+	tsClient       *local.Client
+	dnsProvider    dns.Provider
+	domains        []string
+	nodeRegDomains []string
 }
 
 func (c *config) validate() error {
@@ -45,14 +45,14 @@ func (c *config) validate() error {
 	if c.tsClient == nil {
 		return errNilTsClient
 	}
-	if len(c.regDomains) > 0 {
+	if len(c.nodeRegDomains) > 0 {
 		if len(c.domains) > 0 {
-			for _, regDomain := range c.regDomains {
-				if !slices.Contains(c.domains, regDomain) {
+			for _, nodeRegDomain := range c.nodeRegDomains {
+				if !slices.Contains(c.domains, nodeRegDomain) {
 					return fmt.Errorf(
 						"%w: %s not in [ %s ]",
 						errRegDomainNotAllowed,
-						regDomain,
+						nodeRegDomain,
 						strings.Join(c.domains, ", "),
 					)
 				}
@@ -73,11 +73,11 @@ func New(
 	opts ...Option,
 ) (*Service, error) {
 	cfg := &config{
-		logger:      zap.NewNop(),
-		tsClient:    tsClient,
-		dnsProvider: dnsProvider,
-		domains:     nil,
-		regDomains:  nil,
+		logger:         zap.NewNop(),
+		tsClient:       tsClient,
+		dnsProvider:    dnsProvider,
+		domains:        nil,
+		nodeRegDomains: nil,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -93,7 +93,7 @@ func New(
 			cfg.dnsProvider,
 			authorizer.NewDNS(cfg.logger, cfg.tsClient, dnsCapName),
 			cfg.domains,
-			cfg.regDomains,
+			cfg.nodeRegDomains,
 		),
 	}, nil
 }

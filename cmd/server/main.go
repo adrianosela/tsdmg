@@ -50,8 +50,8 @@ var (
 	hostname  string
 
 	// dns management config
-	domains    stringSlice
-	regDomains stringSlice
+	domains        stringSlice
+	nodeRegDomains stringSlice
 
 	// dns provider creds
 	dnsProviderID          string
@@ -74,7 +74,7 @@ func parseFlags() {
 	flag.StringVar(&tsAuthKey, "ts-authkey", "", "Tailscale auth key")
 	flag.StringVar(&hostname, "hostname", "tsdmg", "Hostname to use for Tailscale machine")
 	flag.Var(&domains, "domain", "Domain management allowlist (repeatable)")
-	flag.Var(&regDomains, "registration-domain", "Domain in which to create A/AAAA records for registering Tailscale nodes (repeatable, if \"domain\" is also set, this MUST be a subset of that)")
+	flag.Var(&nodeRegDomains, "node-reg-domain", "Domain in which to create A/AAAA records for registering Tailscale nodes (repeatable, if \"domain\" is also set, this MUST be a subset of that)")
 	flag.StringVar(&dnsProviderID, "dns-provider", "", fmt.Sprintf("Which DNS provider to use (one of [ %s ])", strings.Join(allowedProviders, ", ")))
 	flag.StringVar(&awsAccessKeyID, "aws-access-key-id", "", "AWS Access Key ID (used when set if dns-provider is \"aws\")")
 	flag.StringVar(&awsSecretAccessKey, "aws-secret-access-key", "", "AWS Secret Access Key (used when set if dns-provider is \"aws\")")
@@ -206,7 +206,7 @@ func main() {
 	opts := []service.Option{
 		service.WithLogger(logger),
 		service.WithDomains(domains...),
-		service.WithRegistrationDomains(regDomains...),
+		service.WithNodeRegDomains(nodeRegDomains...),
 	}
 	tsdmg, err := service.New(context.Background(), tsClient, dnsProvider, opts...)
 	if err != nil {

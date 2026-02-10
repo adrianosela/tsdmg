@@ -49,6 +49,50 @@ The `dns.Provider` interface is implemented for all major DNS providers by `http
 - Google Cloud DNS: https://github.com/libdns/googleclouddns
 - GoDaddy: https://github.com/libdns/godaddy
 
+## Running the Server with Docker
+
+The `tsdmg` server is available as a Docker image:
+
+```bash
+docker run ghcr.io/adrianosela/tsdmg -h
+```
+
+### Example: Running with Cloudflare
+
+```bash
+docker run -d -it ghcr.io/adrianosela/tsdmg \
+  -ts-authkey=$TSDMG_TS_AUTHKEY \
+  -dns-provider=cloudflare \
+  -cloudflare-api-token=$TSDMG_CLOUDFLARE_API_TOKEN \
+  -domain=yourdomain.com \
+  -node-reg-domain=yourdomain.com
+```
+
+> See the [Makefile](./Makefile) `tsdmg-docker` target for a complete working example.
+
+### Configuration Options
+
+| Flag | Description | Required | Default |
+|------|-------------|----------|---------|
+| `-addr` | Address to listen on | No | `:80` |
+| `-hostname` | Hostname to use for Tailscale machine | No | `tsdmg` |
+| `-ts-authkey` | Tailscale auth key | Yes | - |
+| `-dns-provider` | Which DNS provider to use (one of `aws`, `gcp`, `azure`, `cloudflare`, `godaddy`) | Yes | - |
+| `-domain` | Domain management allowlist (repeatable) | No | - |
+| `-node-reg-domain` | Domain in which to create A/AAAA records for registering Tailscale nodes (repeatable, must be subset of `-domain` if both set) | No | - |
+| `-cloudflare-api-token` | Cloudflare API Token | If `dns-provider=cloudflare` | - |
+| `-aws-access-key-id` | AWS Access Key ID | If `dns-provider=aws` (or use profile) | - |
+| `-aws-secret-access-key` | AWS Secret Access Key | If `dns-provider=aws` (or use profile) | - |
+| `-aws-profile` | AWS Profile | If `dns-provider=aws` (or use keys) | - |
+| `-gcp-project` | Google Cloud Project ID | If `dns-provider=gcp` | - |
+| `-gcp-svc-acct-json` | Google Cloud Service Account JSON | If `dns-provider=gcp` | - |
+| `-azure-subscription-id` | Azure Subscription ID | If `dns-provider=azure` | - |
+| `-azure-resource-group-name` | Azure Resource Group Name | If `dns-provider=azure` | - |
+| `-azure-client-id` | Azure Client ID | If `dns-provider=azure` | - |
+| `-azure-client-secret` | Azure Client Secret | If `dns-provider=azure` | - |
+| `-azure-tenant-id` | Azure Tenant ID | If `dns-provider=azure` | - |
+| `-godaddy-api-token` | GoDaddy API Token | If `dns-provider=godaddy` | - |
+
 ## Client Usage
 
 This package includes a `tsdmg` client capable of requesting, caching, and refreshing public (Let's Encrypt) TLS certificates, by leveraging a `tsdmg` server.
