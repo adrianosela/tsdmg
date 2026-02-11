@@ -3,7 +3,7 @@ RUN apk update --no-cache
 RUN apk --no-cache add make bash
 WORKDIR /builddir
 COPY . .
-RUN make build
+RUN make tsdmg
 
 FROM alpine:3.23
 RUN apk upgrade --no-cache

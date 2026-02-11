@@ -7,10 +7,12 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"flag"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/adrianosela/tsdmg"
@@ -19,10 +21,34 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
+type stringSlice []string
+
+func (s *stringSlice) String() string         { return strings.Join(*s, ",") }
+func (s *stringSlice) Set(value string) error { *s = append(*s, value); return nil }
+
 const (
 	statusCodeNoError = 0
 	statusCodeError   = 1
 )
+
+var (
+	serverURL         string
+	cn                string
+	sans              stringSlice
+	cachedir          string
+	ensureAddrRecords bool
+	serveHelloWorld   bool
+)
+
+func parseFlags() {
+	flag.StringVar(&serverURL, "server-url", "http://tsdmg", "TSDMG server url e.g. http://tsdmg")
+	flag.StringVar(&cn, "cn", "", "Common Name (CN) for certificate")
+	flag.Var(&sans, "san", "Subject Alternative Nave (SAN) for certificate (repeatable)")
+	flag.StringVar(&cachedir, "cachedir", "./certcache", "File system location for certificate cache")
+	flag.BoolVar(&ensureAddrRecords, "ensure-address-records", false, "Request tsdmg server to create A and AAAA to Tailscale private IPs")
+	flag.BoolVar(&serveHelloWorld, "serve-hello-world", false, "Serve a hello world on port 443 using the retrieved certificate")
+	flag.Parse()
+}
 
 func main() {
 	os.Exit(run())
@@ -32,16 +58,18 @@ func run() int {
 	logger := logger.New()
 	ctx := context.Background()
 
+	parseFlags()
+
 	clientOpts := []tsdmg.Option{
 		tsdmg.WithLogger(logger),
 
-		// My laptop is already running the Tailscale desktop
-		// client, so the tsdmg server is already reachable by
-		// node-name i.e. http://tsdmg
+		// My laptop is already running the Tailscale desktop i.e.
+		// already networked with the tsdmg server, and its node
+		// name (e.g. tsdmg) resolves to its Tailscale private IP.
 		tsdmg.WithSkipTailscaleNode(true),
 	}
 
-	client, err := tsdmg.NewClient(ctx, "http://tsdmg", clientOpts...)
+	client, err := tsdmg.NewClient(ctx, serverURL, clientOpts...)
 	if err != nil {
 		logger.Error("failed to initialize client", "error", err)
 		return statusCodeError
@@ -50,20 +78,22 @@ func run() int {
 
 	logger.Info("tsdmg client initialized")
 
-	records, err := client.Register(ctx)
-	if err != nil {
-		logger.Error("failed to register node", "error", err)
-		return statusCodeError
+	// Request address records (A + AAAA) if applicable.
+	if ensureAddrRecords {
+		createdRecords, err := client.Register(ctx)
+		if err != nil {
+			logger.Error("failed to initialize client", "error", err)
+			return statusCodeError
+		}
+		logger.Info("node ensured address records (A + AAAA) via tsdmg server", "created", createdRecords)
 	}
-
-	logger.Info("node registered with tsdmg server", "records", records)
 
 	certManagerOpts := []tsautocert.Option{
 		tsautocert.WithLogger(logger),
 
 		// Cache certificates in the filesystem to
 		// avoid hitting the Let's Encrypt rate limit.
-		tsautocert.WithCertificateCache(autocert.DirCache("./certcache")),
+		tsautocert.WithCertificateCache(autocert.DirCache(cachedir)),
 	}
 
 	certManager, err := tsautocert.NewCertificateManager(ctx, client, "adrianos-macbook.tsdmg.net", certManagerOpts...)
@@ -96,15 +126,17 @@ func run() int {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
-	// Run server in a goroutine
+	// Run server in a goroutine if applicable
 	errCh := make(chan error, 1)
 	defer close(errCh)
-	go func() {
-		err = http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("Hello World!"))
-		}))
-		errCh <- err
-	}()
+	if serveHelloWorld {
+		go func() {
+			err = http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("Hello World!"))
+			}))
+			errCh <- err
+		}()
+	}
 
 	// Wait for shutdown signal or error
 	select {
