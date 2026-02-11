@@ -9,20 +9,20 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
 	"github.com/adrianosela/tsdmg/pkg/dns"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/adrianosela/tsdmg/pkg/service"
 	"github.com/libdns/azure"
 	"github.com/libdns/cloudflare"
 	"github.com/libdns/godaddy"
 	"github.com/libdns/googleclouddns"
 	"github.com/libdns/route53"
-	"go.uber.org/zap"
 	"tailscale.com/tsnet"
 )
 
@@ -154,24 +154,33 @@ func getProvider() (dns.Provider, error) {
 	}
 }
 
+const (
+	statusCodeNoError = 0
+	statusCodeError   = 1
+)
+
 func main() {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		log.Fatalf("failed to initialize logger: %v", err)
-	}
+	os.Exit(run())
+}
+
+func run() int {
+	logger := logger.New()
 
 	parseFlags()
 
 	if tsAuthKey == "" {
-		logger.Fatal("flag ts-authkey is required but was empty")
+		logger.Error("flag ts-authkey is required but was empty")
+		return statusCodeError
 	}
 	if dnsProviderID == "" {
-		logger.Fatal("flag dns-provider is required but was empty")
+		logger.Error("flag dns-provider is required but was empty")
+		return statusCodeError
 	}
 
 	dnsProvider, err := getProvider()
 	if err != nil {
-		logger.Fatal("failed to configure dns provider", zap.Error(err))
+		logger.Error("failed to configure dns provider", "error", err)
+		return statusCodeError
 	}
 
 	srv := new(tsnet.Server)
@@ -179,23 +188,29 @@ func main() {
 	srv.Hostname = hostname
 	defer func() {
 		if err := srv.Close(); err != nil {
-			logger.Error("failed to close tsnet server", zap.Error(err))
+			logger.Error("failed to close tsnet server", "error", err)
 		}
 	}()
 
 	ln, err := srv.Listen("tcp", addr)
 	if err != nil {
-		logger.Fatal("failed to initialize TCP listener", zap.String("addr", addr), zap.Error(err))
+		logger.Error(
+			"failed to initialize TCP listener",
+			"addr", addr,
+			"error", err,
+		)
+		return statusCodeError
 	}
 	defer func() {
 		if err := ln.Close(); err != nil {
-			logger.Error("failed to close listener", zap.Error(err))
+			logger.Error("failed to close listener", "error", err)
 		}
 	}()
 
 	tsClient, err := srv.LocalClient()
 	if err != nil {
-		logger.Fatal("failed to initialize tailscale local client", zap.Error(err))
+		logger.Error("failed to initialize tailscale local client", "error", err)
+		return statusCodeError
 	}
 
 	// Wrap tcp listener in tls listener if port is HTTPS port
@@ -210,7 +225,8 @@ func main() {
 	}
 	tsdmg, err := service.New(context.Background(), tsClient, dnsProvider, opts...)
 	if err != nil {
-		logger.Fatal("failed to initialize tsdmg service", zap.Error(err))
+		logger.Error("failed to initialize tsdmg service", "error", err)
+		return statusCodeError
 	}
 
 	// Set up signal handling for graceful shutdown
@@ -222,17 +238,21 @@ func main() {
 	errCh := make(chan error, 1)
 	defer close(errCh)
 	go func() {
-		logger.Info("server starting", zap.String("addr", addr))
-		if err := tsdmg.ServeHTTP(ln); err != nil {
-			errCh <- err
-		}
+		logger.Info("server starting", "addr", addr)
+		err := tsdmg.ServeHTTP(ln)
+		errCh <- err
 	}()
 
 	// Wait for shutdown signal or error
 	select {
 	case sig := <-sigCh:
-		logger.Info("received signal, shutting down gracefully", zap.String("signal", sig.String()))
+		logger.Info("received signal, shutting down gracefully", "signal", sig.String())
+		return statusCodeNoError
 	case err := <-errCh:
-		logger.Fatal("server error", zap.Error(err))
+		if err != nil && !errors.Is(err, net.ErrClosed) {
+			logger.Error("server error", "error", err)
+			return statusCodeError
+		}
+		return statusCodeError
 	}
 }

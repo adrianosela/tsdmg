@@ -14,8 +14,8 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/adrianosela/tsdmg/pkg/service/handler"
-	"go.uber.org/zap"
 	"tailscale.com/client/local"
 )
 
@@ -30,7 +30,7 @@ var (
 )
 
 type config struct {
-	logger         *zap.Logger
+	logger         logger.Logger
 	tsClient       *local.Client
 	dnsProvider    dns.Provider
 	domains        []string
@@ -72,7 +72,7 @@ func New(
 	opts ...Option,
 ) (*Service, error) {
 	cfg := &config{
-		logger:         zap.NewNop(),
+		logger:         logger.New(),
 		tsClient:       tsClient,
 		dnsProvider:    dnsProvider,
 		domains:        nil,

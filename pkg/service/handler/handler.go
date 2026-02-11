@@ -8,12 +8,12 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
-	"go.uber.org/zap"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"tailscale.com/client/local"
 )
 
 func GetHandler(
-	logger *zap.Logger,
+	logger logger.Logger,
 	tsClient *local.Client,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,

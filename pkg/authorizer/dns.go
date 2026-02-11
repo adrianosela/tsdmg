@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer/wildcard"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/adrianosela/tsdmg/pkg/types"
-	"go.uber.org/zap"
 	"tailscale.com/client/local"
 	"tailscale.com/tailcfg"
 	"tailscale.com/util/set"
@@ -19,13 +19,13 @@ import (
 type dnsCap map[string]any
 
 type DNSAuthorizer struct {
-	logger   *zap.Logger
+	logger   logger.Logger
 	tsClient *local.Client
 	capKey   string
 }
 
 func NewDNS(
-	logger *zap.Logger,
+	logger logger.Logger,
 	tsClient *local.Client,
 	csrCapKey string,
 ) *DNSAuthorizer {
@@ -88,7 +88,7 @@ func (a *DNSAuthorizer) AuthorizeRecords(
 	}, nil
 }
 
-func patternsFromCaps(logger *zap.Logger, caps []dnsCap) map[string]set.Set[string] {
+func patternsFromCaps(logger logger.Logger, caps []dnsCap) map[string]set.Set[string] {
 	result := make(map[string]set.Set[string])
 
 	for _, cap := range caps {
@@ -104,13 +104,19 @@ func patternsFromCaps(logger *zap.Logger, caps []dnsCap) map[string]set.Set[stri
 						normalized = append(normalized, vStr)
 					} else {
 						// not parseable, move on
-						logger.Warn("got a request from client with invalid capabilities", zap.String("type", fmt.Sprintf("%T", v)))
+						logger.Warn(
+							"got a request from client with invalid capabilities",
+							"type", fmt.Sprintf("%T", v),
+						)
 						continue
 					}
 				}
 			default:
 				// not parseable, move on
-				logger.Warn("got a request from client with invalid capabilities", zap.String("type", fmt.Sprintf("%T", patterns)))
+				logger.Warn(
+					"got a request from client with invalid capabilities",
+					"type", fmt.Sprintf("%T", patterns),
+				)
 				continue
 			}
 

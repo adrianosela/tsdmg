@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/adrianosela/tsdmg/pkg/dns"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/libdns/libdns"
-	"go.uber.org/zap"
 	"golang.org/x/crypto/acme"
 )
 
@@ -55,7 +55,7 @@ func WithPropagationCheckInterval(interval time.Duration) Option {
 
 func GetCertificate(
 	ctx context.Context,
-	logger *zap.Logger,
+	logger logger.Logger,
 	acmeClient *acme.Client,
 	dnsProvider DNS01Solver,
 	csr *x509.CertificateRequest,
@@ -143,8 +143,8 @@ func GetCertificate(
 			challengeFQDN := fmt.Sprintf("_acme-challenge.%s", fqdn)
 			logger.Info(
 				"waiting for propagation of DNS-01 challenge record",
-				zap.String("fqdn", challengeFQDN),
-				zap.String("value", txt),
+				"fqdn", challengeFQDN,
+				"value", txt,
 			)
 			if err := waitForTXTPropagation(ctx, challengeFQDN, txt, cfg.checkResolvers, cfg.checkInterval); err != nil {
 				errs[i] = err

@@ -10,13 +10,13 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/adrianosela/tsdmg/pkg/types"
 	"github.com/libdns/libdns"
-	"go.uber.org/zap"
 )
 
 func dnsRecordsHandler(
-	logger *zap.Logger,
+	logger logger.Logger,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
 	zoneAllowlist []string,
@@ -34,27 +34,27 @@ func dnsRecordsHandler(
 }
 
 func dnsRecordsPOSTHandler(
-	logger *zap.Logger,
+	logger logger.Logger,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
 	zoneAllowlist []string,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logger.With(
-			zap.String("path", r.URL.Path),
-			zap.String("remote_addr", r.RemoteAddr),
+			"path", r.URL.Path,
+			"remote_addr", r.RemoteAddr,
 		)
 
 		var req types.CreateRecordsInput
 		if err := req.Read(r.Body); err != nil {
-			logger.Error("failed to parse request JSON", zap.Error(err))
+			logger.Error("failed to parse request JSON", "error", err)
 			respondError(logger, w, "invalid request format", http.StatusBadRequest)
 			return
 		}
 
 		result, err := dnsAuthorizer.AuthorizeRecords(r.Context(), r.RemoteAddr, req.Records...)
 		if err != nil {
-			logger.Error("failed to authorize DNS request", zap.Error(err))
+			logger.Error("failed to authorize DNS request", "error", err)
 			respondGenericInternalServerError(logger, w)
 			return
 		}
@@ -103,7 +103,7 @@ func dnsRecordsPOSTHandler(
 			Error:   errMsg,
 		}
 		if err := out.Write(w); err != nil {
-			logger.Error("failed to encode reqsponse as JSON", zap.Error(err))
+			logger.Error("failed to encode reqsponse as JSON", "error", err)
 			respondGenericInternalServerError(logger, w)
 			return
 		}

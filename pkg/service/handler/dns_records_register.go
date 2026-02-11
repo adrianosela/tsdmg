@@ -10,14 +10,14 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/adrianosela/tsdmg/pkg/types"
 	"github.com/libdns/libdns"
-	"go.uber.org/zap"
 	"tailscale.com/client/local"
 )
 
 func dnsRecordsRegisterHandler(
-	logger *zap.Logger,
+	logger logger.Logger,
 	tsClient *local.Client,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
@@ -44,7 +44,7 @@ func dnsRecordsRegisterHandler(
 }
 
 func dnsRecordsRegisterPOSTHandler(
-	logger *zap.Logger,
+	logger logger.Logger,
 	tsClient *local.Client,
 	dnsProvider dns.Provider,
 	dnsAuthorizer *authorizer.DNSAuthorizer,
@@ -54,8 +54,8 @@ func dnsRecordsRegisterPOSTHandler(
 	if len(regZones) == 0 {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := logger.With(
-				zap.String("path", r.URL.Path),
-				zap.String("remote_addr", r.RemoteAddr),
+				"path", r.URL.Path,
+				"remote_addr", r.RemoteAddr,
 			)
 			respondError(logger, w, "The registration feature is not enabled for this server", http.StatusForbidden)
 		})
@@ -63,13 +63,13 @@ func dnsRecordsRegisterPOSTHandler(
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logger.With(
-			zap.String("path", r.URL.Path),
-			zap.String("remote_addr", r.RemoteAddr),
+			"path", r.URL.Path,
+			"remote_addr", r.RemoteAddr,
 		)
 
 		who, err := tsClient.WhoIs(r.Context(), r.RemoteAddr)
 		if err != nil {
-			logger.Error("failed to retrieve whois data for remote client", zap.Error(err))
+			logger.Error("failed to retrieve whois data for remote client", "error", err)
 			respondGenericInternalServerError(logger, w)
 			return
 		}
@@ -112,7 +112,7 @@ func dnsRecordsRegisterPOSTHandler(
 
 		result, err := dnsAuthorizer.AuthorizeRecords(r.Context(), r.RemoteAddr, records...)
 		if err != nil {
-			logger.Error("failed to authorize DNS request", zap.Error(err))
+			logger.Error("failed to authorize DNS request", "error", err)
 			respondGenericInternalServerError(logger, w)
 			return
 		}
@@ -192,7 +192,7 @@ func dnsRecordsRegisterPOSTHandler(
 			Error:   errMsg,
 		}
 		if err := out.Write(w); err != nil {
-			logger.Error("failed to encode reqsponse as JSON", zap.Error(err))
+			logger.Error("failed to encode reqsponse as JSON", "error", err)
 			respondGenericInternalServerError(logger, w)
 			return
 		}

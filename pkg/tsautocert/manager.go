@@ -20,10 +20,10 @@ import (
 	"time"
 
 	"github.com/adrianosela/tsdmg"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/adrianosela/tsdmg/pkg/tsautocert/certcache"
 	"github.com/adrianosela/tsdmg/pkg/tsautocert/csrgen"
 	"github.com/adrianosela/tsdmg/pkg/tsautocert/dns01"
-	"go.uber.org/zap"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -41,7 +41,7 @@ var (
 // of "http-01") by using a tsdmg client to create the
 // TXT records required to prove domain ownership.
 type CertificateManager struct {
-	logger *zap.Logger
+	logger logger.Logger
 
 	dns01Solver dns01.DNS01Solver
 
@@ -86,7 +86,7 @@ func NewCertificateManager(
 	opts ...Option,
 ) (*CertificateManager, error) {
 	cfg := &config{
-		logger:         zap.NewNop(),
+		logger:         logger.New(),
 		tsdmgClient:    tsdmg,
 		certCN:         commonName,
 		certSANs:       nil,
@@ -190,9 +190,9 @@ func (c *CertificateManager) startRefresher() {
 			if parsed, err := x509.ParseCertificate(initialCert.Certificate[0]); err == nil {
 				c.logger.Info(
 					"certificate ready",
-					zap.String("cn", parsed.Subject.CommonName),
-					zap.Strings("sans", parsed.DNSNames),
-					zap.String("exp", parsed.NotAfter.Format(time.RFC3339)),
+					"cn", parsed.Subject.CommonName,
+					"sans", parsed.DNSNames,
+					"exp", parsed.NotAfter.Format(time.RFC3339),
 				)
 			}
 		}
@@ -216,7 +216,7 @@ func (c *CertificateManager) startRefresher() {
 func (c *CertificateManager) refresh() {
 	priv, csr, err := csrgen.GenerateKeyAndCSR(c.certCN, c.certSANs...)
 	if err != nil {
-		c.logger.Error("failed to generate key and CSR for new certificate", zap.Error(err))
+		c.logger.Error("failed to generate key and CSR for new certificate", "error", err)
 		return
 	}
 
@@ -229,7 +229,7 @@ func (c *CertificateManager) refresh() {
 		dns01.WithBundle(true),
 	)
 	if err != nil {
-		c.logger.Error("failed to refresh certificate via ACME", zap.Error(err))
+		c.logger.Error("failed to refresh certificate via ACME", "error", err)
 		return
 	}
 	if len(chain) < 1 {
@@ -240,7 +240,7 @@ func (c *CertificateManager) refresh() {
 
 	cert, err := x509.ParseCertificate(leaf)
 	if err != nil {
-		c.logger.Error("fresh certificate failed parsing as x509.Certificate", zap.Error(err))
+		c.logger.Error("fresh certificate failed parsing as x509.Certificate", "error", err)
 		return
 	}
 
@@ -250,9 +250,9 @@ func (c *CertificateManager) refresh() {
 	})
 	c.logger.Info(
 		"certificate rotated successfully",
-		zap.String("cn", cert.Subject.CommonName),
-		zap.Strings("sans", cert.DNSNames),
-		zap.Time("exp", cert.NotAfter),
+		"cn", cert.Subject.CommonName,
+		"sans", cert.DNSNames,
+		"exp", cert.NotAfter,
 	)
 
 	go c.tryPersist(chain, priv)
@@ -268,12 +268,12 @@ func (c *CertificateManager) tryPersist(chainDER [][]byte, key *ecdsa.PrivateKey
 	}
 
 	if err := c.cache.Put(c.refresherCtx, cacheKeyForCert(c.cacheKey), chainData); err != nil {
-		c.logger.Error("failed to persist certificate chain in cache", zap.Error(err))
+		c.logger.Error("failed to persist certificate chain in cache", "error", err)
 	}
 
 	keyBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
-		c.logger.Error("failed to marshal ECDSA private key", zap.Error(err))
+		c.logger.Error("failed to marshal ECDSA private key", "error", err)
 		return
 	}
 	keyData := pem.EncodeToMemory(&pem.Block{
@@ -282,20 +282,20 @@ func (c *CertificateManager) tryPersist(chainDER [][]byte, key *ecdsa.PrivateKey
 	})
 
 	if err := c.cache.Put(c.refresherCtx, cacheKeyForKey(c.cacheKey), keyData); err != nil {
-		c.logger.Error("failed to persist private key in cache", zap.Error(err))
+		c.logger.Error("failed to persist private key in cache", "error", err)
 	}
 }
 
 func (c *CertificateManager) tryLoadCertificateFromCache() bool {
 	chainPEM, err := c.cache.Get(c.refresherCtx, cacheKeyForCert(c.cacheKey))
 	if err != nil {
-		c.logger.Error("failed to load certificate from cache", zap.Error(err))
+		c.logger.Error("failed to load certificate from cache", "error", err)
 		return false
 	}
 
 	keyPEM, err := c.cache.Get(c.refresherCtx, cacheKeyForKey(c.cacheKey))
 	if err != nil {
-		c.logger.Error("failed to load key from cache", zap.Error(err))
+		c.logger.Error("failed to load key from cache", "error", err)
 		return false
 	}
 
@@ -303,8 +303,8 @@ func (c *CertificateManager) tryLoadCertificateFromCache() bool {
 	if err != nil {
 		c.logger.Error(
 			"failed to materialize cert and key pem data as tls.Certificate",
-			zap.String("chain_pem", string(chainPEM)),
-			zap.Error(err),
+			"chain_pem", string(chainPEM),
+			"error", err,
 		)
 		return false
 	}
@@ -323,7 +323,7 @@ func (c *CertificateManager) tryLoadCertificateFromCache() bool {
 	return true
 }
 
-func needsRefresh(logger *zap.Logger, cert *tls.Certificate, threshold time.Duration, cn string, sans ...string) bool {
+func needsRefresh(logger logger.Logger, cert *tls.Certificate, threshold time.Duration, cn string, sans ...string) bool {
 	if cert == nil {
 		logger.Error("needsRefresh was called with nil certificate")
 		return true
@@ -336,7 +336,7 @@ func needsRefresh(logger *zap.Logger, cert *tls.Certificate, threshold time.Dura
 
 	parsed, err := x509.ParseCertificate(leaf)
 	if err != nil {
-		logger.Error("existing certificate failed parsing as x509.Certificate", zap.Error(err))
+		logger.Error("existing certificate failed parsing as x509.Certificate", "error", err)
 		return true
 
 	}
@@ -344,8 +344,8 @@ func needsRefresh(logger *zap.Logger, cert *tls.Certificate, threshold time.Dura
 	if parsed.Subject.CommonName != cn {
 		logger.Info(
 			"existing certificate common name does not match requested, will refresh",
-			zap.String("cert_cn", parsed.Subject.CommonName),
-			zap.String("required_cn", cn),
+			"cert_cn", parsed.Subject.CommonName,
+			"required_cn", cn,
 		)
 		return true
 	}
@@ -360,8 +360,8 @@ func needsRefresh(logger *zap.Logger, cert *tls.Certificate, threshold time.Dura
 	if !slices.Equal(parsed.DNSNames, expectedSANs) {
 		logger.Info(
 			"existing certificate SANs do not match requested, will refresh",
-			zap.Strings("cert_sans", parsed.DNSNames),
-			zap.Strings("required_sans", expectedSANs),
+			"cert_sans", parsed.DNSNames,
+			"required_sans", expectedSANs,
 		)
 		return true
 	}
@@ -369,8 +369,8 @@ func needsRefresh(logger *zap.Logger, cert *tls.Certificate, threshold time.Dura
 	if time.Until(parsed.NotAfter) < threshold {
 		logger.Info(
 			"existing certificate expires within threshold, will refresh",
-			zap.Time("cert_exp", parsed.NotAfter),
-			zap.Time("required_min_exp", time.Now().Add(threshold)),
+			"cert_exp", parsed.NotAfter,
+			"required_min_exp", time.Now().Add(threshold),
 		)
 		return true
 	}

@@ -35,11 +35,11 @@ Run the `tsdmg` service as shown in `./cmd/server/main.go`:
 ```
 tsdmg, err := service.New(ctx, tsClient, dnsProvider)
 if err != nil {
-    logger.Fatal("failed to initialize tsdmg service", zap.Error(err))
+    log.Fatalf("failed to initialize tsdmg service: %v", err)
 }
 
 if err = tsdmg.ServeHTTP(ln); err != nil {
-    logger.Fatal("failed to serve HTTP over tsnet listener", zap.Error(err))
+    log.Fatalf("failed to serve HTTP over tsnet listener: %v", err)
 }
 ```
 
@@ -101,9 +101,6 @@ This package includes a `tsdmg` client capable of requesting, caching, and refre
 serverURL := "http://tsdmg" // my server's node name is tsdmg
 
 opts := []tsdmg.Option{
-	// Use a real logger.
-	tsdmg.WithLogger(logger),
-
 	// My laptop is already running the Tailscale desktop
 	// client, so the tsdmg server is already reachable by
 	// node-name i.e. http://tsdmg. Not setting this option
@@ -113,7 +110,7 @@ opts := []tsdmg.Option{
 
 client, err := tsdmg.NewClient(ctx, serverURL, opts...)
 if err != nil {
-	logger.Fatal("failed to initialize client", zap.Error(err))
+	log.Fatalf("failed to initialize client: %v", err)
 }
 defer client.Close()
 
@@ -134,9 +131,6 @@ With an initialized `tsdmg.Client` client:
 certCommonName := "macbook.tsdmg.net"
 
 opts := []tsautocert.Option{
-	// Use a real logger.
-	tsautocert.WithLogger(logger),
-
 	// Cache certificates in the filesystem to
 	// avoid hitting the Let's Encrypt rate limit.
 	tsautocert.WithCertificateCache(autocert.DirCache("./certcache")),
@@ -149,17 +143,17 @@ certManager, err := tsautocert.NewCertificateManager(
 	opts...,
 )
 if err != nil {
-	logger.Fatal("failed to initialize certificate manager", zap.Error(err))
+	log.Fatalf("failed to initialize certificate manager: %v", err)
 }
 defer certManager.Close()
 
 if err := certManager.WaitForInitialCert(ctx); err != nil {
-	logger.Fatal("failed to wait for initial certificate", zap.Error(err))
+	log.Fatalf("failed to wait for initial certificate: %v", err)
 }
 
 ln, err := net.Listen("tcp", ":443")
 if err != nil {
-	logger.Fatal("failed to start tcp listener on :443", zap.Error(err))
+	log.Fatalf("failed to start tcp listener: %v", err)
 }
 
 // Configure TLS listener to get certificate using tsdmg client.
@@ -170,7 +164,7 @@ err = http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 	w.Write([]byte("Hello World!"))
 }))
 if err != nil {
-	logger.Fatal("failed to serve HTTP", zap.Error(err))
+	log.Fatalf("failed to serve HTTP: %v", err)
 }
 ```
 
@@ -224,5 +218,4 @@ Say you also want your client to have the ability to create `A` and `AAAA` recor
 
 ## TODOs:
 
-- Accept generic loggers, not zap.Logger
 - Better project structure e.g. `internal`, not everything as `pkg`

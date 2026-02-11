@@ -4,16 +4,16 @@
 package service
 
 import (
-	"go.uber.org/zap"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 )
 
 // Option represents a configuration option for initializing a Service.
 type Option func(*config)
 
 // WithLogger is a configuration option to configure a logger.
-// If this option is not set, a zap.NewNop() logger is used,
-// which logs nothing.
-func WithLogger(logger *zap.Logger) Option {
+// If this option is not set a log/slog logger is used with a
+// JSON handler.
+func WithLogger(logger logger.Logger) Option {
 	return func(c *config) { c.logger = logger }
 }
 

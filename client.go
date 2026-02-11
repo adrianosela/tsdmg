@@ -11,9 +11,9 @@ import (
 	"net/http"
 	"sync/atomic"
 
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"github.com/adrianosela/tsdmg/pkg/service"
 	"github.com/adrianosela/tsdmg/pkg/types"
-	"go.uber.org/zap"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
 )
@@ -52,7 +52,7 @@ type client struct {
 // the given options. Note that serverURL must include scheme (http/s).
 func NewClient(ctx context.Context, serverURL string, opts ...Option) (Client, error) {
 	cfg := &config{
-		logger:            zap.NewNop(),
+		logger:            logger.New(),
 		serverURL:         serverURL,
 		skipTailscaleNode: false,
 		tailscaleClient:   nil,

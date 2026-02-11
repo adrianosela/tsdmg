@@ -8,7 +8,7 @@ import (
 	"errors"
 
 	"github.com/adrianosela/tsdmg"
-	"go.uber.org/zap"
+	"github.com/adrianosela/tsdmg/pkg/logger"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -22,7 +22,7 @@ var (
 )
 
 type config struct {
-	logger *zap.Logger
+	logger logger.Logger
 
 	tsdmgClient tsdmg.Client
 
@@ -55,9 +55,9 @@ func (c *config) validate() error {
 type Option func(*config)
 
 // WithLogger is a configuration option to configure a logger.
-// If this option is not set, a zap.NewNop() logger is used,
-// which logs nothing.
-func WithLogger(logger *zap.Logger) Option {
+// If this option is not set a log/slog logger is used with a
+// JSON handler.
+func WithLogger(logger logger.Logger) Option {
 	return func(c *config) { c.logger = logger }
 }
 
