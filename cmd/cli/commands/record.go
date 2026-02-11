@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/adrianosela/tsdmg/pkg/client"
 	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/service"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ var recordDeleteCmd = &cobra.Command{
 }
 
 func recordCreateHandler(cmd *cobra.Command, args []string) {
-	cl := client.New(http.DefaultClient, serverURL)
+	cl := service.NewClient(http.DefaultClient, serverURL)
 
 	record := models.Record{
 		Type:  recordType,
@@ -61,7 +61,7 @@ func recordCreateHandler(cmd *cobra.Command, args []string) {
 }
 
 func recordDeleteHandler(cmd *cobra.Command, args []string) {
-	cl := client.New(http.DefaultClient, serverURL)
+	cl := service.NewClient(http.DefaultClient, serverURL)
 
 	record := models.Record{
 		Type:  recordType,

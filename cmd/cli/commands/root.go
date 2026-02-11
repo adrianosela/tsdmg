@@ -11,20 +11,14 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "cats",
-	Short: "CLI for requesting certificates from catsnet CA",
+	Use:   "tssl",
+	Short: "CLI for requesting records from a tsdmg server",
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
 }
 
 func Execute() error {
-	requestCmd.Flags().StringVarP(&serverURL, "server", "s", "", "TSDMG server URL (required)")
-	requestCmd.Flags().StringVarP(&commonName, "cn", "c", "", "Common Name (CN) for the certificate (required)")
-	requestCmd.Flags().StringSliceVarP(&sans, "san", "a", []string{}, "Subject Alternative Names (comma-separated)")
-	requestCmd.Flags().StringVarP(&keyOutPath, "key-out", "k", "key.pem", "Path to write the private key")
-	requestCmd.Flags().StringVarP(&certOutPath, "cert-out", "o", "cert.pem", "Path to write the certificate")
-	_ = requestCmd.MarkFlagRequired("server")
-	_ = requestCmd.MarkFlagRequired("cn")
-	rootCmd.AddCommand(requestCmd)
-
 	recordCreateCmd.Flags().StringVarP(&serverURL, "server", "s", "", "TSDMG server URL (required)")
 	recordCreateCmd.Flags().StringVarP(&recordType, "type", "t", "", "DNS record type (required)")
 	recordCreateCmd.Flags().StringVarP(&recordFQDN, "fqdn", "f", "", "DNS record FQDN (required)")
@@ -47,7 +41,6 @@ func Execute() error {
 	recordCmd.AddCommand(recordDeleteCmd)
 
 	rootCmd.AddCommand(recordCmd)
-
 	return rootCmd.Execute()
 }
 
