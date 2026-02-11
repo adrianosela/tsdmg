@@ -60,12 +60,11 @@ docker run ghcr.io/adrianosela/tsdmg -h
 ### Example: Running with Cloudflare
 
 ```bash
-docker run -d -it ghcr.io/adrianosela/tsdmg \
-  -ts-authkey=$TSDMG_TS_AUTHKEY \
+docker run -it ghcr.io/adrianosela/tsdmg \
+  -domain=yourdomain.com \
   -dns-provider=cloudflare \
   -cloudflare-api-token=$TSDMG_CLOUDFLARE_API_TOKEN \
-  -domain=yourdomain.com \
-  -node-reg-domain=yourdomain.com
+  -ts-authkey=$TSDMG_TS_AUTHKEY
 ```
 
 > See the [Makefile](./Makefile) `tsdmg-docker` target for a complete working example.

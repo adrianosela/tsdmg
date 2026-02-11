@@ -19,22 +19,20 @@ tsdmg: ## Run the tsdmg server (with Cloudflare as the DNS provider)
 	$(call check_env_set,TSDMG_TS_AUTHKEY)
 	$(call check_env_set,TSDMG_CLOUDFLARE_API_TOKEN)
 	(cd cmd/server && go run . \
-		-ts-authkey=$$TSDMG_TS_AUTHKEY \
+		-domain=$(TSDMG_DOMAIN) \
 		-dns-provider=cloudflare \
 		-cloudflare-api-token=$$TSDMG_CLOUDFLARE_API_TOKEN \
-		-domain=$(TSDMG_DOMAIN) \
-		-node-reg-domain=$(TSDMG_DOMAIN))
+		-ts-authkey=$$TSDMG_TS_AUTHKEY)
 
 .PHONY: tsdmg-docker
 tsdmg-docker: ## Run the tsdmg server image (with Cloudflare as the DNS provider)
 	$(call check_env_set,TSDMG_TS_AUTHKEY)
 	$(call check_env_set,TSDMG_CLOUDFLARE_API_TOKEN)
 	docker run -d -it ghcr.io/adrianosela/tsdmg \
-		-ts-authkey=$$TSDMG_TS_AUTHKEY \
+		-domain=$(TSDMG_DOMAIN) \
 		-dns-provider=cloudflare \
 		-cloudflare-api-token=$$TSDMG_CLOUDFLARE_API_TOKEN \
-		-domain=$(TSDMG_DOMAIN) \
-		-node-reg-domain=$(TSDMG_DOMAIN)
+		-ts-authkey=$$TSDMG_TS_AUTHKEY
 
 .PHONY: build
 build: ## Build the tsdmg server binary for the current OS/ARCH

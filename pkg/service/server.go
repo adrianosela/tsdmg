@@ -85,6 +85,13 @@ func New(
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
+	// If there are no nodeRegDomains, the full list of domains is used.
+	if len(cfg.nodeRegDomains) == 0 {
+		if len(cfg.domains) > 0 {
+			cfg.nodeRegDomains = cfg.domains
+		}
+	}
+
 	return &Service{
 		handler: handler.GetHandler(
 			cfg.logger,
