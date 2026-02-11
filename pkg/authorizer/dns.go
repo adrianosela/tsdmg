@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/adrianosela/tsdmg/pkg/models"
-	"github.com/adrianosela/tsdmg/pkg/wildcard"
+	"github.com/adrianosela/tsdmg/pkg/authorizer/wildcard"
+	"github.com/adrianosela/tsdmg/pkg/types"
 	"go.uber.org/zap"
 	"tailscale.com/client/local"
 	"tailscale.com/tailcfg"
@@ -39,7 +39,7 @@ func NewDNS(
 func (a *DNSAuthorizer) AuthorizeRecords(
 	ctx context.Context,
 	remoteAddr string,
-	records ...models.Record,
+	records ...types.Record,
 ) (*Result, error) {
 	who, err := a.tsClient.WhoIs(ctx, remoteAddr)
 	if err != nil {

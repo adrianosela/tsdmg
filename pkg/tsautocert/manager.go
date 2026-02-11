@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/adrianosela/tsdmg"
-	"github.com/adrianosela/tsdmg/pkg/csrgen"
 	"github.com/adrianosela/tsdmg/pkg/tsautocert/certcache"
+	"github.com/adrianosela/tsdmg/pkg/tsautocert/csrgen"
 	"github.com/adrianosela/tsdmg/pkg/tsautocert/dns01"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme"

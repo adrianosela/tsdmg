@@ -10,7 +10,7 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
-	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/types"
 	"github.com/libdns/libdns"
 	"go.uber.org/zap"
 )
@@ -46,7 +46,7 @@ func dnsRecordsDeletePOSTHandler(
 			zap.String("remote_addr", r.RemoteAddr),
 		)
 
-		var req models.DeleteRecordsInput
+		var req types.DeleteRecordsInput
 		if err := req.Read(r.Body); err != nil {
 			logger.Error("failed to parse request JSON", zap.Error(err))
 			respondError(logger, w, "invalid request format", http.StatusBadRequest)
@@ -79,7 +79,7 @@ func dnsRecordsDeletePOSTHandler(
 			}
 		}
 
-		deleted := []models.Record{}
+		deleted := []types.Record{}
 		erroredZones := []error{}
 		for zone, recordsToDelete := range libdnsRecords {
 
@@ -126,7 +126,7 @@ func dnsRecordsDeletePOSTHandler(
 				continue
 			}
 			for _, deletedRecord := range deletedRecords {
-				deleted = append(deleted, *models.RecordFromLibDNS(deletedRecord, zone))
+				deleted = append(deleted, *types.RecordFromLibDNS(deletedRecord, zone))
 			}
 		}
 
@@ -134,7 +134,7 @@ func dnsRecordsDeletePOSTHandler(
 		if err := errors.Join(erroredZones...); err != nil {
 			errMsg = err.Error()
 		}
-		out := &models.DeleteRecordsOutput{
+		out := &types.DeleteRecordsOutput{
 			Error:   errMsg,
 			Records: deleted,
 		}

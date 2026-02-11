@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/types"
 )
 
 type Client interface {
-	CreateRecords(context.Context, *models.CreateRecordsInput) (*models.CreateRecordsOutput, error)
-	DeleteRecords(context.Context, *models.DeleteRecordsInput) (*models.DeleteRecordsOutput, error)
-	Register(context.Context) (*models.RegisterOutput, error)
+	CreateRecords(context.Context, *types.CreateRecordsInput) (*types.CreateRecordsOutput, error)
+	DeleteRecords(context.Context, *types.DeleteRecordsInput) (*types.DeleteRecordsOutput, error)
+	Register(context.Context) (*types.RegisterOutput, error)
 }
 
 type client struct {
@@ -32,8 +32,8 @@ func NewClient(httpClient *http.Client, apiURL string) Client {
 
 func (c *client) CreateRecords(
 	ctx context.Context,
-	in *models.CreateRecordsInput,
-) (*models.CreateRecordsOutput, error) {
+	in *types.CreateRecordsInput,
+) (*types.CreateRecordsOutput, error) {
 	// Build request.
 	var buf bytes.Buffer
 	if err := in.Write(&buf); err != nil {
@@ -57,7 +57,7 @@ func (c *client) CreateRecords(
 
 	// Handle error response.
 	if resp.StatusCode != http.StatusOK {
-		var errResp models.CreateRecordsOutput
+		var errResp types.CreateRecordsOutput
 		if err := errResp.Read(resp.Body); err == nil && errResp.Error != "" {
 			return nil, fmt.Errorf("server returned error (status %d): %s", resp.StatusCode, errResp.Error)
 		}
@@ -65,7 +65,7 @@ func (c *client) CreateRecords(
 	}
 
 	// Handle success response
-	var out models.CreateRecordsOutput
+	var out types.CreateRecordsOutput
 	if err := out.Read(resp.Body); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}
@@ -75,8 +75,8 @@ func (c *client) CreateRecords(
 
 func (c *client) DeleteRecords(
 	ctx context.Context,
-	in *models.DeleteRecordsInput,
-) (*models.DeleteRecordsOutput, error) {
+	in *types.DeleteRecordsInput,
+) (*types.DeleteRecordsOutput, error) {
 	// Build request.
 	var buf bytes.Buffer
 	if err := in.Write(&buf); err != nil {
@@ -100,7 +100,7 @@ func (c *client) DeleteRecords(
 
 	// Handle error response.
 	if resp.StatusCode != http.StatusOK {
-		var errResp models.DeleteRecordsOutput
+		var errResp types.DeleteRecordsOutput
 		if err := errResp.Read(resp.Body); err == nil && errResp.Error != "" {
 			return nil, fmt.Errorf("server returned error (status %d): %s", resp.StatusCode, errResp.Error)
 		}
@@ -108,7 +108,7 @@ func (c *client) DeleteRecords(
 	}
 
 	// Handle success response
-	var out models.DeleteRecordsOutput
+	var out types.DeleteRecordsOutput
 	if err := out.Read(resp.Body); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}
@@ -118,7 +118,7 @@ func (c *client) DeleteRecords(
 
 func (c *client) Register(
 	ctx context.Context,
-) (*models.RegisterOutput, error) {
+) (*types.RegisterOutput, error) {
 	// Build request.
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -138,7 +138,7 @@ func (c *client) Register(
 
 	// Handle error response.
 	if resp.StatusCode != http.StatusOK {
-		var errResp models.RegisterOutput
+		var errResp types.RegisterOutput
 		if err := errResp.Read(resp.Body); err == nil && errResp.Error != "" {
 			return nil, fmt.Errorf("server returned error (status %d): %s", resp.StatusCode, errResp.Error)
 		}
@@ -146,7 +146,7 @@ func (c *client) Register(
 	}
 
 	// Handle success response
-	var out models.RegisterOutput
+	var out types.RegisterOutput
 	if err := out.Read(resp.Body); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}

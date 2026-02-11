@@ -10,7 +10,7 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
-	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/types"
 	"github.com/libdns/libdns"
 	"go.uber.org/zap"
 	"tailscale.com/client/local"
@@ -74,7 +74,7 @@ func dnsRecordsRegisterPOSTHandler(
 			return
 		}
 
-		records := []models.Record{}
+		records := []types.Record{}
 		for _, prefix := range who.Node.Addresses {
 			addr := prefix.Addr()
 
@@ -85,7 +85,7 @@ func dnsRecordsRegisterPOSTHandler(
 
 			if addr.Is4() {
 				for _, zone := range regZones {
-					records = append(records, models.Record{
+					records = append(records, types.Record{
 						Type:  "A",
 						FQDN:  fmt.Sprintf("%s.%s", who.Node.ComputedName, zone),
 						Value: addr.String(),
@@ -96,7 +96,7 @@ func dnsRecordsRegisterPOSTHandler(
 			}
 			if addr.Is6() {
 				for _, zone := range regZones {
-					records = append(records, models.Record{
+					records = append(records, types.Record{
 						Type:  "AAAA",
 						FQDN:  fmt.Sprintf("%s.%s", who.Node.ComputedName, zone),
 						Value: addr.String(),
@@ -136,7 +136,7 @@ func dnsRecordsRegisterPOSTHandler(
 			}
 		}
 
-		createdRecords := []models.Record{}
+		createdRecords := []types.Record{}
 		erroredZones := []error{}
 		for zone, records := range libdnsRecords {
 			// Fetch existing records in the zone.
@@ -179,7 +179,7 @@ func dnsRecordsRegisterPOSTHandler(
 				continue
 			}
 			for _, libdnsRecord := range created {
-				createdRecords = append(createdRecords, *models.RecordFromLibDNS(libdnsRecord, zone))
+				createdRecords = append(createdRecords, *types.RecordFromLibDNS(libdnsRecord, zone))
 			}
 		}
 
@@ -187,7 +187,7 @@ func dnsRecordsRegisterPOSTHandler(
 		if err := errors.Join(erroredZones...); err != nil {
 			errMsg = err.Error()
 		}
-		out := &models.RegisterOutput{
+		out := &types.RegisterOutput{
 			Records: createdRecords,
 			Error:   errMsg,
 		}

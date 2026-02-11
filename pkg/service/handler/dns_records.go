@@ -10,7 +10,7 @@ import (
 
 	"github.com/adrianosela/tsdmg/pkg/authorizer"
 	"github.com/adrianosela/tsdmg/pkg/dns"
-	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/types"
 	"github.com/libdns/libdns"
 	"go.uber.org/zap"
 )
@@ -45,7 +45,7 @@ func dnsRecordsPOSTHandler(
 			zap.String("remote_addr", r.RemoteAddr),
 		)
 
-		var req models.CreateRecordsInput
+		var req types.CreateRecordsInput
 		if err := req.Read(r.Body); err != nil {
 			logger.Error("failed to parse request JSON", zap.Error(err))
 			respondError(logger, w, "invalid request format", http.StatusBadRequest)
@@ -78,7 +78,7 @@ func dnsRecordsPOSTHandler(
 			}
 		}
 
-		createdRecords := []models.Record{}
+		createdRecords := []types.Record{}
 		erroredZones := []error{}
 		for zone, records := range libdnsRecords {
 			created, err := dnsProvider.AppendRecords(r.Context(), zone, records)
@@ -90,7 +90,7 @@ func dnsRecordsPOSTHandler(
 				continue
 			}
 			for _, libdnsRecord := range created {
-				createdRecords = append(createdRecords, *models.RecordFromLibDNS(libdnsRecord, zone))
+				createdRecords = append(createdRecords, *types.RecordFromLibDNS(libdnsRecord, zone))
 			}
 		}
 
@@ -98,7 +98,7 @@ func dnsRecordsPOSTHandler(
 		if err := errors.Join(erroredZones...); err != nil {
 			errMsg = err.Error()
 		}
-		out := &models.CreateRecordsOutput{
+		out := &types.CreateRecordsOutput{
 			Records: createdRecords,
 			Error:   errMsg,
 		}

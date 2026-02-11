@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/adrianosela/tsdmg/pkg/models"
 	"github.com/adrianosela/tsdmg/pkg/service"
+	"github.com/adrianosela/tsdmg/pkg/types"
 	"go.uber.org/zap"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
@@ -26,16 +26,16 @@ import (
 // configured on the tsdmg server.
 type Client interface {
 	// CreateRecords creates the requested DNS records via the tsdmg server.
-	CreateRecords(context.Context, ...models.Record) ([]models.Record, error)
+	CreateRecords(context.Context, ...types.Record) ([]types.Record, error)
 
 	// DeleteRecords deletes the requested DNS records via the tsdmg server.
-	DeleteRecords(context.Context, ...models.Record) ([]models.Record, error)
+	DeleteRecords(context.Context, ...types.Record) ([]types.Record, error)
 
 	// Register requests the tsdmg server to create A and AAAA records for this
 	// node's Tailscale private IPs. Domain configuration lives server side. That
 	// is, the tsdmg server decides which domains to create records in, but all
 	// records will be of the form ${node}.${domain}.
-	Register(context.Context) ([]models.Record, error)
+	Register(context.Context) ([]types.Record, error)
 
 	// Close closes the client gracefully.
 	Close() error
@@ -100,8 +100,8 @@ func NewClient(ctx context.Context, serverURL string, opts ...Option) (Client, e
 }
 
 // CreateRecords creates the requested DNS records via the tsdmg server.
-func (c *client) CreateRecords(ctx context.Context, records ...models.Record) ([]models.Record, error) {
-	out, err := c.svcClient.CreateRecords(ctx, &models.CreateRecordsInput{Records: records})
+func (c *client) CreateRecords(ctx context.Context, records ...types.Record) ([]types.Record, error) {
+	out, err := c.svcClient.CreateRecords(ctx, &types.CreateRecordsInput{Records: records})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create records using tsdmg http client: %v", err)
 	}
@@ -109,8 +109,8 @@ func (c *client) CreateRecords(ctx context.Context, records ...models.Record) ([
 }
 
 // DeleteRecords deletes the requested DNS records via the tsdmg server.
-func (c *client) DeleteRecords(ctx context.Context, records ...models.Record) ([]models.Record, error) {
-	out, err := c.svcClient.DeleteRecords(ctx, &models.DeleteRecordsInput{Records: records})
+func (c *client) DeleteRecords(ctx context.Context, records ...types.Record) ([]types.Record, error) {
+	out, err := c.svcClient.DeleteRecords(ctx, &types.DeleteRecordsInput{Records: records})
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete records using tsdmg http client: %v", err)
 	}
@@ -121,7 +121,7 @@ func (c *client) DeleteRecords(ctx context.Context, records ...models.Record) ([
 // node's Tailscale private IPs. Domain configuration lives server side. That
 // is, the tsdmg server decides which domains to create records in, but all
 // records will be of the form ${node}.${domain}.
-func (c *client) Register(ctx context.Context) ([]models.Record, error) {
+func (c *client) Register(ctx context.Context) ([]types.Record, error) {
 	out, err := c.svcClient.Register(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to register node using tsdmg http client: %v", err)

@@ -6,14 +6,14 @@ package handler
 import (
 	"net/http"
 
-	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/types"
 	"go.uber.org/zap"
 )
 
 func respondError(logger *zap.Logger, w http.ResponseWriter, msg string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	if err := (&models.Error{Error: msg}).Write(w); err != nil {
+	if err := (&types.Error{Error: msg}).Write(w); err != nil {
 		logger.Error("failed to write error response", zap.Error(err))
 	}
 }

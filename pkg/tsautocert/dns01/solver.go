@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/adrianosela/tsdmg"
-	"github.com/adrianosela/tsdmg/pkg/models"
+	"github.com/adrianosela/tsdmg/pkg/types"
 	"github.com/libdns/libdns"
 )
 
@@ -27,9 +27,9 @@ func NewTSDMGSolver(client tsdmg.Client) DNS01Solver {
 	}
 }
 func (s *tsdmgDNS01Solver) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	modelRecords := []models.Record{}
+	modelRecords := []types.Record{}
 	for _, record := range recs {
-		modelRecords = append(modelRecords, *models.RecordFromLibDNS(record, zone))
+		modelRecords = append(modelRecords, *types.RecordFromLibDNS(record, zone))
 	}
 
 	created, err := s.client.CreateRecords(ctx, modelRecords...)
@@ -50,9 +50,9 @@ func (s *tsdmgDNS01Solver) AppendRecords(ctx context.Context, zone string, recs 
 }
 
 func (s *tsdmgDNS01Solver) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	modelRecords := []models.Record{}
+	modelRecords := []types.Record{}
 	for _, record := range recs {
-		modelRecords = append(modelRecords, *models.RecordFromLibDNS(record, zone))
+		modelRecords = append(modelRecords, *types.RecordFromLibDNS(record, zone))
 	}
 
 	deleted, err := s.client.DeleteRecords(ctx, modelRecords...)

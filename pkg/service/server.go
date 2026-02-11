@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	csrCapName = "tsdmg.net/csr/v1"
 	dnsCapName = "tsdmg.net/dns/v1"
 )
 
