@@ -22,6 +22,7 @@ import (
 	"github.com/libdns/cloudflare"
 	"github.com/libdns/godaddy"
 	"github.com/libdns/googleclouddns"
+	"github.com/libdns/namecheap"
 	"github.com/libdns/route53"
 	"tailscale.com/tsnet"
 )
@@ -38,6 +39,7 @@ var (
 		"azure",
 		"cloudflare",
 		"godaddy",
+		"namecheap",
 	}
 )
 
@@ -67,6 +69,7 @@ var (
 	azureClientSecret      string
 	cloudflareAPIToken     string
 	godaddyAPIToken        string
+	namecheapAPIKey        string
 )
 
 func parseFlags() {
@@ -88,6 +91,7 @@ func parseFlags() {
 	flag.StringVar(&azureClientSecret, "azure-client-secret", "", "Azure Client Secret (used when set if dns-provider is \"azure\")")
 	flag.StringVar(&cloudflareAPIToken, "cloudflare-api-token", "", "Cloudflare API Token (required if dns-provider is \"cloudflare\")")
 	flag.StringVar(&godaddyAPIToken, "godaddy-api-token", "", "GoDaddy API Token (required if dns-provider is \"godaddy\")")
+	flag.StringVar(&namecheapAPIKey, "namecheap-api-key", "", "Namecheap API Key (required if dns-provider is \"namecheap\")")
 	flag.Parse()
 }
 
@@ -149,6 +153,11 @@ func getProvider() (dns.Provider, error) {
 			return nil, errors.New("flag godaddy-api-token is required but was empty")
 		}
 		return &godaddy.Provider{APIToken: godaddyAPIToken}, nil
+	case "namecheap":
+		if namecheapAPIKey == "" {
+			return nil, errors.New("flag namecheap-api-key is required but was empty")
+		}
+		return &namecheap.Provider{APIKey: namecheapAPIKey}, nil
 	default:
 		return nil, fmt.Errorf("invalid dns provider: got %s but must be one of [ %s ]", dnsProviderID, strings.Join(allowedProviders, ", "))
 	}

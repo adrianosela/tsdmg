@@ -10,8 +10,8 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/libdns/godaddy v1.1.0
 	github.com/libdns/googleclouddns v1.2.0
+	github.com/libdns/namecheap v1.0.0
 	github.com/libdns/route53 v1.6.0
-	go.uber.org/zap v1.27.1
 	tailscale.com v1.94.1
 )
 
@@ -86,7 +86,6 @@ require (
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
-	go.uber.org/multierr v1.11.0 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/crypto v0.48.0 // indirect
